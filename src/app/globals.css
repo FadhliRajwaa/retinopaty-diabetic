@@ -1,26 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light theme (default) */
+  --background: #EEEEEE; /* light - EEEEEE */
+  --foreground: #222831; /* dark text - 222831 */
+  --surface: #ffffff;
+  --muted: #393E46; /* 393E46 */
+  --accent: #00ADB5; /* 00ADB5 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark theme (controlled by next-themes adding class="dark" on html) */
+.dark {
+  --background: #222831; /* 222831 */
+  --foreground: #EEEEEE; /* EEEEEE */
+  --surface: #1b2026;
+  --muted: #393E46; /* 393E46 */
+  --accent: #00ADB5; /* 00ADB5 */
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(1200px 800px at 10% -10%, color-mix(in oklab, var(--accent) 18%, transparent), transparent),
+    radial-gradient(1000px 600px at 110% -20%, color-mix(in oklab, var(--muted) 12%, transparent), transparent),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
