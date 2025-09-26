@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { getURL } from "@/lib/auth-config";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
@@ -17,15 +18,13 @@ export function GoogleButton({
     try {
       setLoading(true);
       const supabase = createClient();
-      // Force HTTP for localhost development to avoid SSL errors
-      const origin = window.location.origin.replace('https://localhost', 'http://localhost');
-      const redirectTo = `${origin}/auth/callback${role ? `?role=${role}` : ""}`;
+      const baseURL = getURL();
+      const redirectTo = `${baseURL}auth/callback${role ? `?role=${role}` : ""}`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
           queryParams: {
-            // Optional: request offline access for provider_refresh_token
             access_type: "offline",
             prompt: "consent",
           },
