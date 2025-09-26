@@ -6,11 +6,9 @@ import { useState } from "react";
 
 export function GoogleButton({
   label = "Masuk dengan Google",
-  next = "/",
   role,
 }: {
   label?: string;
-  next?: string;
   role?: "admin" | "patient";
 }) {
   const [loading, setLoading] = useState(false);
@@ -19,9 +17,9 @@ export function GoogleButton({
     try {
       setLoading(true);
       const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-        next
-      )}${role ? `&role=${role}` : ""}`;
+      // Force HTTP for localhost development to avoid SSL errors
+      const origin = window.location.origin.replace('https://localhost', 'http://localhost');
+      const redirectTo = `${origin}/auth/callback${role ? `?role=${role}` : ""}`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

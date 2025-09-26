@@ -14,3 +14,57 @@ datasource db {
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
+// User profiles table to store additional user data
+model UserProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique // Maps to Supabase auth.users.id
+  email     String   @unique
+  fullName  String?
+  role      String   @default("patient") // "admin" or "patient"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  patientRecords PatientRecord[]
+  diagnoses      Diagnosis[]
+
+  @@map("user_profiles")
+}
+
+// Patient medical records
+model PatientRecord {
+  id          String   @id @default(cuid())
+  patientId   String
+  imageUrl    String
+  description String?
+  severity    String?  // "normal", "mild", "moderate", "severe"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  patient   UserProfile @relation(fields: [patientId], references: [userId])
+  diagnoses Diagnosis[]
+
+  @@map("patient_records")
+}
+
+// AI Diagnosis results
+model Diagnosis {
+  id              String   @id @default(cuid())
+  patientRecordId String
+  doctorId        String?
+  aiConfidence    Float?   // AI confidence score (0-1)
+  aiResult        String?  // AI diagnosis result
+  doctorNotes     String?
+  finalDiagnosis  String?  // Final diagnosis by doctor
+  status          String   @default("pending") // "pending", "reviewed", "confirmed"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  patientRecord PatientRecord @relation(fields: [patientRecordId], references: [id], onDelete: Cascade)
+  doctor        UserProfile?  @relation(fields: [doctorId], references: [userId])
+
+  @@map("diagnoses")
+}

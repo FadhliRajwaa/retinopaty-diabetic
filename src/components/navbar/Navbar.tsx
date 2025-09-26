@@ -11,8 +11,21 @@ export default async function Navbar() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Debug logging
+  console.log('Navbar - User:', user ? {
+    id: user.id,
+    email: user.email,
+    metadata: user.user_metadata
+  } : 'No user');
+
   const role = (user?.user_metadata as { role?: string } | null)?.role;
   const dashboardHref = role === "admin" ? "/dashboard/admin" : "/dashboard/patient";
+  
+  // Get user display name from metadata or email
+  const userName = user?.user_metadata?.full_name || 
+                   user?.user_metadata?.name || 
+                   user?.email?.split('@')[0] || 
+                   'Pengguna';
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background shadow-sm">
@@ -32,7 +45,24 @@ export default async function Navbar() {
                 >
                   Dashboard
                 </Link>
-                <SignOutButton />
+                <div className="relative group">
+                  <button className="flex items-center gap-2 h-10 px-4 rounded-md text-sm font-medium border border-[#393E46]/30 hover:bg-[#393E46]/10 transition-colors">
+                    <div className="w-6 h-6 rounded-full bg-[#00ADB5] flex items-center justify-center text-white text-xs font-semibold">
+                      {userName.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="max-w-24 truncate">{userName}</span>
+                  </button>
+                  <div className="absolute right-0 top-12 w-48 bg-white dark:bg-[#222831] border border-[#393E46]/30 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="p-2">
+                      <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-[#393E46]/20">
+                        {user.email}
+                      </div>
+                      <div className="mt-1">
+                        <SignOutButton variant="dropdown" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2">

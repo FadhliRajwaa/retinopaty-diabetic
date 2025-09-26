@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleButton } from "@/components/auth/GoogleButton";
@@ -16,8 +16,6 @@ export default function LoginPage() {
 
 function LoginView() {
   const router = useRouter();
-  const search = useSearchParams();
-  const next = search.get("next") || "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,14 +27,13 @@ function LoginView() {
     setError(null);
     setLoading(true);
     const supabase = createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return setError(error.message);
 
-    const role = (data.user?.user_metadata as { role?: string } | null)?.role;
-    if (role === "admin") return router.push("/dashboard/admin");
-    if (role === "patient") return router.push("/dashboard/patient");
-    router.push(next);
+    // Force refresh and redirect to success page to update navbar
+    router.refresh();
+    router.push("/auth/login/success");
   };
 
   return (
@@ -82,7 +79,7 @@ function LoginView() {
 
         <div className="my-6 h-px bg-gradient-to-r from-transparent via-[#393E46]/30 to-transparent" />
 
-        <GoogleButton label="Masuk dengan Google" next={next} />
+        <GoogleButton label="Masuk dengan Google" />
 
         <p className="mt-6 text-sm text-gray-600 dark:text-[#EEEEEE]/70">
           Belum punya akun? {" "}

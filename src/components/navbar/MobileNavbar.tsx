@@ -4,9 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 
 interface MobileNavbarProps {
-  user: { id: string; email?: string } | null;
+  user: { 
+    id: string; 
+    email?: string; 
+    user_metadata?: { 
+      full_name?: string; 
+      name?: string; 
+      role?: string;
+    } 
+  } | null;
   role?: string;
   dashboardHref: string;
 }
@@ -15,6 +24,12 @@ export function MobileNavbar({ user, role, dashboardHref }: MobileNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleMenu = () => setIsOpen(!isOpen);
+  
+  // Get user display name from metadata or email
+  const userName = user?.user_metadata?.full_name || 
+                   user?.user_metadata?.name || 
+                   user?.email?.split('@')[0] || 
+                   'Pengguna';
 
   return (
     <>
@@ -78,6 +93,30 @@ export function MobileNavbar({ user, role, dashboardHref }: MobileNavbarProps) {
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.05 }}
+                      className="flex items-center gap-3 p-3 bg-[#00ADB5]/10 rounded-lg"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#00ADB5] flex items-center justify-center text-white font-semibold">
+                        {userName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{userName}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                        <div className="mt-1">
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            role === 'admin' 
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' 
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                          }`}>
+                            {role === 'admin' ? 'Admin' : 'Pasien'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                    
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 }}
                     >
                       <Link
@@ -87,6 +126,16 @@ export function MobileNavbar({ user, role, dashboardHref }: MobileNavbarProps) {
                       >
                         Dashboard {role === "admin" ? "Admin" : "Pasien"}
                       </Link>
+                    </motion.div>
+                    
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.15 }}
+                    >
+                      <div onClick={toggleMenu}>
+                        <SignOutButton variant="dropdown" />
+                      </div>
                     </motion.div>
                     
                     <motion.div

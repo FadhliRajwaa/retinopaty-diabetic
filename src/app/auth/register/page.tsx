@@ -34,11 +34,27 @@ export default function RegisterPage() {
     setLoading(false);
     if (error) return setError(error.message);
 
-    if (data.session) {
-      // Directly logged in (no email confirmation required)
-      router.push(role === "admin" ? "/dashboard/admin" : "/dashboard/patient");
+    if (data.session && data.user) {
+      // User is directly logged in (no email confirmation required)
+      // Create user profile
+      try {
+        await supabase.from('user_profiles').insert({
+          user_id: data.user.id,
+          email: data.user.email!,
+          role: role
+        });
+      } catch (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
+      
+      // Redirect to home page instead of dashboard
+      router.push("/");
     } else {
-      setMessage("Pendaftaran berhasil. Silakan cek email untuk konfirmasi.");
+      setMessage("Pendaftaran berhasil. Silakan masuk untuk melanjutkan.");
+      // Redirect to login page for email confirmation
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 2000);
     }
   };
 
@@ -103,7 +119,7 @@ export default function RegisterPage() {
 
         <div className="my-6 h-px bg-gradient-to-r from-transparent via-[#393E46]/30 to-transparent" />
 
-        <GoogleButton label="Daftar dengan Google" next={`/${role === "admin" ? "dashboard/admin" : "dashboard/patient"}`} role={role} />
+        <GoogleButton label="Daftar dengan Google" role={role} />
 
         <p className="mt-6 text-sm text-gray-600 dark:text-[#EEEEEE]/70">
           Sudah punya akun? {" "}

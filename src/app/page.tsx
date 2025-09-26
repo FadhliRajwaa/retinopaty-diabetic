@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 import { InteractiveCard } from "@/components/ui/InteractiveCard";
 import { FloatingParticles } from "@/components/ui/FloatingParticles";
 import { InteractiveDiagnosisSection } from "@/components/sections/InteractiveDiagnosisSection";
@@ -50,6 +52,32 @@ const itemVariants = {
 };
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const role = (user?.user_metadata as { role?: string } | null)?.role;
+  const dashboardHref = role === "admin" ? "/dashboard/admin" : "/dashboard/patient";
+
   return (
     <div className="min-h-screen bg-background relative">
       {/* Floating Particles Background */}
@@ -93,19 +121,33 @@ export default function Home() {
                 variants={itemVariants}
                 className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4"
               >
-                <Link
-                  href="/auth/register"
-                  className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00ADB5] to-[#00ADB5]/90 px-6 sm:px-8 text-white font-medium hover:shadow-lg hover:shadow-[#00ADB5]/25 hover:-translate-y-0.5 transition-all duration-300 group"
-                >
-                  Mulai Gratis
-                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-foreground/20 px-6 sm:px-8 font-medium text-foreground hover:bg-foreground/5 hover:-translate-y-0.5 transition-all duration-300"
-                >
-                  Masuk
-                </Link>
+                {!loading && (
+                  user ? (
+                    <Link
+                      href={dashboardHref}
+                      className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00ADB5] to-[#00ADB5]/90 px-6 sm:px-8 text-white font-medium hover:shadow-lg hover:shadow-[#00ADB5]/25 hover:-translate-y-0.5 transition-all duration-300 group"
+                    >
+                      Buka Dashboard
+                      <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/auth/register"
+                        className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00ADB5] to-[#00ADB5]/90 px-6 sm:px-8 text-white font-medium hover:shadow-lg hover:shadow-[#00ADB5]/25 hover:-translate-y-0.5 transition-all duration-300 group"
+                      >
+                        Mulai Gratis
+                        <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </Link>
+                      <Link
+                        href="/auth/login"
+                        className="inline-flex h-12 items-center justify-center rounded-xl border border-foreground/20 px-6 sm:px-8 font-medium text-foreground hover:bg-foreground/5 hover:-translate-y-0.5 transition-all duration-300"
+                      >
+                        Masuk
+                      </Link>
+                    </>
+                  )
+                )}
               </motion.div>
 
               <motion.div
@@ -505,6 +547,31 @@ function TestimonialsSection() {
 function CTASection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: false, margin: "-100px" });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const role = (user?.user_metadata as { role?: string } | null)?.role;
+  const dashboardHref = role === "admin" ? "/dashboard/admin" : "/dashboard/patient";
 
   return (
     <section ref={ref} className="py-12 sm:py-16 lg:py-24 bg-gradient-to-br from-[#00ADB5]/10 via-[#00ADB5]/5 to-transparent">
@@ -521,19 +588,33 @@ function CTASection() {
             Bergabunglah dengan ribuan profesional medis yang sudah menggunakan RetinaAI untuk deteksi dini Diabetic Retinopathy
           </motion.p>
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md sm:max-w-none mx-auto">
-            <Link
-              href="/auth/register"
-              className="inline-flex h-11 sm:h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00ADB5] to-[#00ADB5]/90 px-6 sm:px-8 text-sm sm:text-base text-white font-medium hover:shadow-lg hover:shadow-[#00ADB5]/25 hover:-translate-y-0.5 transition-all duration-300 group"
-            >
-              Mulai Sekarang
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/auth/login"
-              className="inline-flex h-11 sm:h-12 items-center justify-center rounded-xl border border-foreground/20 px-6 sm:px-8 text-sm sm:text-base font-medium text-foreground hover:bg-foreground/5 hover:-translate-y-0.5 transition-all duration-300"
-            >
-              Sudah Punya Akun?
-            </Link>
+            {!loading && (
+              user ? (
+                <Link
+                  href={dashboardHref}
+                  className="inline-flex h-11 sm:h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00ADB5] to-[#00ADB5]/90 px-6 sm:px-8 text-sm sm:text-base text-white font-medium hover:shadow-lg hover:shadow-[#00ADB5]/25 hover:-translate-y-0.5 transition-all duration-300 group"
+                >
+                  Buka Dashboard
+                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/register"
+                    className="inline-flex h-11 sm:h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00ADB5] to-[#00ADB5]/90 px-6 sm:px-8 text-sm sm:text-base text-white font-medium hover:shadow-lg hover:shadow-[#00ADB5]/25 hover:-translate-y-0.5 transition-all duration-300 group"
+                  >
+                    Mulai Sekarang
+                    <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  <Link
+                    href="/auth/login"
+                    className="inline-flex h-11 sm:h-12 items-center justify-center rounded-xl border border-foreground/20 px-6 sm:px-8 text-sm sm:text-base font-medium text-foreground hover:bg-foreground/5 hover:-translate-y-0.5 transition-all duration-300"
+                  >
+                    Sudah Punya Akun?
+                  </Link>
+                </>
+              )
+            )}
           </motion.div>
         </motion.div>
       </div>
