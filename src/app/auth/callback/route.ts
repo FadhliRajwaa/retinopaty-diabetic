@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createOrUpdateProfile } from "@/lib/supabase/profile";
+import { getURL } from "@/lib/auth-config";
 import { revalidatePath } from "next/cache";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   let next = searchParams.get("next") ?? "/";
   const role = searchParams.get("role");
@@ -48,18 +49,9 @@ export async function GET(request: Request) {
       revalidatePath('/', 'layout');
       revalidatePath('/');
       
-      const forwardedHost = (request.headers as Headers).get("x-forwarded-host");
-      if (forwardedHost) {
-        // Use HTTPS for production, HTTP for localhost development
-        const protocol = forwardedHost.includes('localhost') ? 'http' : 'https';
-        const response = NextResponse.redirect(`${protocol}://${forwardedHost}/auth/login/success`);
-        // Clear cache to ensure navbar re-renders with new user state
-        response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-        response.headers.set('Pragma', 'no-cache');
-        response.headers.set('Expires', '0');
-        return response;
-      }
-      const response = NextResponse.redirect(`${origin}/auth/login/success`);
+      // Use getURL() untuk konsisten dengan environment variables
+      const baseURL = getURL();
+      const response = NextResponse.redirect(`${baseURL}auth/login/success`);
       // Clear cache to ensure navbar re-renders with new user state
       response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       response.headers.set('Pragma', 'no-cache');
@@ -68,5 +60,6 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/login?error=oauth_callback`);
+  const baseURL = getURL();
+  return NextResponse.redirect(`${baseURL}auth/login?error=oauth_callback`);
 }
