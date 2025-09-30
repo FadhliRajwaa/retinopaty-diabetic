@@ -14,7 +14,7 @@
   --background: #222831; /* 222831 */
   --foreground: #EEEEEE; /* EEEEEE */
   --surface: #1b2026;
-  --muted: #393E46; /* 393E46 */
+  --muted: #9CA3AF; /* Light gray for better visibility in dark mode */
   --accent: #00ADB5; /* 00ADB5 */
 }
 
@@ -26,4 +26,82 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  body {
+    background: radial-gradient(800px 600px at 20% -5%, color-mix(in oklab, var(--accent) 12%, transparent), transparent),
+      radial-gradient(600px 400px at 90% -10%, color-mix(in oklab, var(--muted) 8%, transparent), transparent),
+      var(--background);
+  }
+}
+
+/* Utility classes for dashboard responsiveness */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Smooth scrolling for dashboard content */
+.dashboard-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--accent) 30%, transparent) transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+  border-radius: 3px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--accent) 50%, transparent);
+}
+
+/* Custom scrollbar for horizontal tables */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--accent) 30%, transparent) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--accent) 50%, transparent);
+}
+
+.scrollbar-thumb-accent-30 {
+  scrollbar-color: color-mix(in oklab, var(--accent) 30%, transparent) transparent;
 }

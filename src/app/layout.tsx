@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ThemeTransition } from "@/components/theme/ThemeTransition";
-import NavbarClient from "@/components/navbar/NavbarClient";
+import ConditionalNavbar from "@/components/ConditionalNavbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,8 +31,8 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <ThemeTransition>
-            {/* Navbar global */}
-            <NavbarClient />
+            {/* Conditional Navbar - hides for admin routes */}
+            <ConditionalNavbar />
             <main className="min-h-[calc(100dvh-4rem)]">{children}</main>
           </ThemeTransition>
         </ThemeProvider>
