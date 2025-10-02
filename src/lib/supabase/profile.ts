@@ -34,7 +34,9 @@ export async function createOrUpdateProfile(userId: string, email: string, fullN
         user_id: userId,
         email,
         full_name: fullName,
-        role: role || 'patient'
+        role: role || 'patient',
+        // Default status: patients must be approved by admin first
+        status: (role || 'patient') === 'admin' ? 'approved' : 'pending'
       });
 
     if (error) {

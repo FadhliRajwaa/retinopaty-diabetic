@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -143,7 +144,6 @@ export default function ScansPage() {
     if (!analysisResult) return;
     
     try {
-      const supabase = createClient();
       const finalResult = {
         ...analysisResult,
         notes,
@@ -305,7 +305,7 @@ export default function ScansPage() {
             
             {/* Mobile: Vertical */}
             <div className="md:hidden space-y-4">
-              {steps.map((step, index) => (
+              {steps.map((step) => (
                 <div key={step.number} className="flex items-start gap-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getStepColor(step.status)} shrink-0 shadow-md ${step.status === 'active' ? 'ring-4 ring-[var(--accent)]/20' : ''}`}>
                     {getStepIcon(step.status)}
@@ -465,11 +465,13 @@ export default function ScansPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="relative bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                      <img
-                        src={imagePreview}
+                    <div className="relative h-64 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+                      <Image
+                        src={imagePreview || ''}
                         alt="Preview retina scan"
-                        className="w-full h-64 object-contain rounded-lg"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-contain rounded-lg"
                       />
                       <button
                         onClick={() => {
@@ -575,11 +577,13 @@ export default function ScansPage() {
                   {imagePreview && (
                     <div>
                       <h4 className="font-semibold text-[var(--foreground)] mb-3">Gambar Scan</h4>
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                        <img
-                          src={imagePreview}
+                      <div className="relative h-48 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+                        <Image
+                          src={imagePreview || ''}
                           alt="Retina scan"
-                          className="w-full h-48 object-contain rounded-lg"
+                          fill
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="object-contain rounded-lg"
                         />
                       </div>
                     </div>

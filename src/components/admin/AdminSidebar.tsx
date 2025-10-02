@@ -11,7 +11,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  Home
 } from "lucide-react";
 import { useState } from "react";
 import { SignOutButton } from "@/components/auth/SignOutButton";
@@ -24,6 +24,11 @@ interface AdminSidebarProps {
 }
 
 const menuItems = [
+  {
+    icon: Home,
+    label: "Beranda",
+    href: "/"
+  },
   {
     icon: LayoutDashboard,
     label: "Dashboard",
@@ -154,11 +159,11 @@ export default function AdminSidebar({
           </div>
         )}
         {isCollapsed && (
-          <button
-            className="w-full p-2 rounded-lg hover:bg-red-500/10 text-[var(--muted)] hover:text-red-500 transition-colors flex items-center justify-center"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <SignOutButton 
+            variant="sidebar" 
+            showLabel={false}
+            className="w-full justify-center p-2 rounded-lg hover:bg-red-500/10 text-[var(--muted)] hover:text-red-500 transition-colors"
+          />
         )}
       </div>
     </div>

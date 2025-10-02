@@ -37,6 +37,25 @@ export default function PatientDashboard() {
         return;
       }
 
+      // Gate by approval status and role
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role,status')
+        .eq('user_id', user.id)
+        .single();
+
+      // If not approved, send to pending page and stop
+      if (!profile || profile.status !== 'approved') {
+        window.location.href = '/auth/pending';
+        return;
+      }
+
+      // If role is not patient, reroute to admin dashboard
+      if (profile.role !== 'patient') {
+        window.location.href = '/dashboard/admin';
+        return;
+      }
+
       setUser(user);
       setLoading(false);
     };

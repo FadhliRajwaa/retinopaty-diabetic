@@ -14,7 +14,7 @@ import {
   Calendar,
   User as UserIcon,
   Search,
-  Filter
+  Loader2
 } from "lucide-react";
 
 interface PendingPatient {
@@ -35,6 +35,8 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [pendingPatients, setPendingPatients] = useState<PendingPatient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -79,6 +81,8 @@ export default function ApprovalsPage() {
 
   const approvePatient = async (patientId: string) => {
     try {
+      setActionLoadingId(patientId);
+      setActionType('approve');
       const supabase = createClient();
       const { error } = await supabase
         .from('user_profiles')
@@ -105,11 +109,16 @@ export default function ApprovalsPage() {
       
     } catch (error) {
       console.error('Error approving patient:', error);
+    } finally {
+      setActionLoadingId(null);
+      setActionType(null);
     }
   };
 
   const rejectPatient = async (patientId: string) => {
     try {
+      setActionLoadingId(patientId);
+      setActionType('reject');
       const supabase = createClient();
       const { error } = await supabase
         .from('user_profiles')
@@ -132,6 +141,9 @@ export default function ApprovalsPage() {
       
     } catch (error) {
       console.error('Error rejecting patient:', error);
+    } finally {
+      setActionLoadingId(null);
+      setActionType(null);
     }
   };
 
@@ -254,16 +266,26 @@ export default function ApprovalsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => approvePatient(patient.user_id)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    disabled={actionLoadingId === patient.user_id}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-60"
                   >
-                    <Check className="w-4 h-4" />
+                    {actionLoadingId === patient.user_id && actionType === 'approve' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
                     Setujui
                   </button>
                   <button
                     onClick={() => rejectPatient(patient.user_id)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    disabled={actionLoadingId === patient.user_id}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-60"
                   >
-                    <X className="w-4 h-4" />
+                    {actionLoadingId === patient.user_id && actionType === 'reject' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
                     Tolak
                   </button>
                 </div>

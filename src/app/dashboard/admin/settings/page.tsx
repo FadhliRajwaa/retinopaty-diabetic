@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { 
-  Settings,
   User as UserIcon,
   Bell,
   Shield,

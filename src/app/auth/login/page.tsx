@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleButton } from "@/components/auth/GoogleButton";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -29,11 +30,42 @@ function LoginView() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return setError(error.message);
+    if (error) {
+      // Langsung arahkan ke halaman daftar
+      router.push("/auth/register?need_register=1");
+      return;
+    }
 
-    // Force refresh and redirect to success page to update navbar
-    router.refresh();
-    router.push("/auth/login/success");
+    // After login, check approval status from user_profiles
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role,status')
+        .eq('user_id', user.id)
+        .single();
+
+      const meta = user.user_metadata as { role?: string } | null;
+      const role = (profile?.role as string) || meta?.role || 'patient';
+
+      // If user never registered (no profile), show toast then redirect to register
+      if (!profile) {
+        await supabase.auth.signOut();
+        router.push("/auth/register?need_register=1");
+        return;
+      }
+
+      // If not yet approved, send to pending page
+      if (profile.status !== 'approved') {
+        await supabase.auth.signOut();
+        router.push("/auth/pending");
+        return;
+      }
+
+      // Approved user: go to respective dashboard
+      router.refresh();
+      router.push(role === 'admin' ? "/dashboard/admin" : "/dashboard/patient");
+    }
   };
 
   return (
@@ -41,6 +73,8 @@ function LoginView() {
       <div className="rounded-2xl border border-[#393E46]/20 bg-[#EEEEEE]/90 dark:bg-[#222831]/90 backdrop-blur p-6 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-[#EEEEEE]">Masuk</h1>
         <p className="text-sm text-gray-600 dark:text-[#EEEEEE]/70 mt-1">Akses dashboard Admin/Pasien RetinaAI</p>
+
+        {/* Inline banner removed in favor of fixed toast */}
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
@@ -71,9 +105,10 @@ function LoginView() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-11 rounded-md bg-[#00ADB5] text-white font-medium hover:brightness-110 transition disabled:opacity-70"
+            className="w-full h-11 rounded-md bg-[#00ADB5] text-white font-medium hover:brightness-110 transition disabled:opacity-70 inline-flex items-center justify-center gap-2"
           >
-            {loading ? "Memproses..." : "Masuk"}
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            <span>{loading ? "Memproses..." : "Masuk"}</span>
           </button>
         </form>
 
