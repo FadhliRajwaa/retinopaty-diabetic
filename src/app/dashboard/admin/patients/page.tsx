@@ -20,7 +20,8 @@ import {
   Clock,
   X,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 
 interface Patient {
@@ -51,12 +52,16 @@ export default function PatientsPage() {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
+    password: '',
     phone: '',
     date_of_birth: '',
     gender: '',
     address: '',
     status: 'pending' as Patient['status']
   });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -100,17 +105,27 @@ export default function PatientsPage() {
 
   const handleCreate = async () => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('user_profiles')
-        .insert([{
-          ...formData,
-          role: 'patient',
-          user_id: 'manual_' + Date.now() // temporary ID for manual entries
-        }])
-        .select();
-
-      if (error) throw error;
+      if (!formData.email || !formData.password) {
+        alert('Email dan password wajib diisi');
+        return;
+      }
+      setCreateLoading(true);
+      const res = await fetch('/api/admin/patients/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: formData.full_name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          date_of_birth: formData.date_of_birth,
+          gender: formData.gender,
+          address: formData.address,
+          status: formData.status,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menambahkan pasien');
       await loadPatients();
       setShowCreateModal(false);
       resetForm();
@@ -118,19 +133,32 @@ export default function PatientsPage() {
     } catch (error) {
       console.error('Error creating patient:', error);
       alert('Gagal menambahkan pasien!');
+    } finally {
+      setCreateLoading(false);
     }
   };
 
   const handleUpdate = async () => {
     if (!selectedPatient) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('user_profiles')
-        .update(formData)
-        .eq('id', selectedPatient.id);
-
-      if (error) throw error;
+      setUpdateLoading(true);
+      const res = await fetch('/api/admin/patients/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: selectedPatient.user_id,
+          full_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone,
+          date_of_birth: formData.date_of_birth,
+          gender: formData.gender,
+          address: formData.address,
+          status: formData.status,
+          password: formData.password || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memperbarui pasien');
       await loadPatients();
       setShowEditModal(false);
       setSelectedPatient(null);
@@ -139,19 +167,22 @@ export default function PatientsPage() {
     } catch (error) {
       console.error('Error updating patient:', error);
       alert('Gagal memperbarui data pasien!');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
   const handleDelete = async () => {
     if (!selectedPatient) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('id', selectedPatient.id);
-
-      if (error) throw error;
+      setDeleteLoading(true);
+      const res = await fetch('/api/admin/patients/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: selectedPatient.user_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus pasien');
       await loadPatients();
       setShowDeleteModal(false);
       setSelectedPatient(null);
@@ -159,6 +190,8 @@ export default function PatientsPage() {
     } catch (error) {
       console.error('Error deleting patient:', error);
       alert('Gagal menghapus pasien!');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -166,6 +199,7 @@ export default function PatientsPage() {
     setFormData({
       full_name: '',
       email: '',
+      password: '',
       phone: '',
       date_of_birth: '',
       gender: '',
@@ -179,6 +213,7 @@ export default function PatientsPage() {
     setFormData({
       full_name: patient.full_name || '',
       email: patient.email,
+      password: '',
       phone: patient.phone || '',
       date_of_birth: patient.date_of_birth || '',
       gender: patient.gender || '',
@@ -345,12 +380,12 @@ export default function PatientsPage() {
         </div>
 
         {/* Desktop Table */}
-        <div className="hidden md:block bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg overflow-hidden">
+        <div className="hidden md:block bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg overflow-x-auto scrollbar-thin">
           <div className="px-6 py-4 border-b border-[var(--muted)]/20">
             <h3 className="text-lg font-semibold text-[var(--foreground)]">Daftar Pasien</h3>
           </div>
           
-          <table className="w-full">
+          <table className="w-full min-w-[960px]">
             <thead className="bg-[var(--muted)]/5">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
@@ -365,7 +400,7 @@ export default function PatientsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                   Tanggal Daftar
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider whitespace-nowrap w-36">
                   Aksi
                 </th>
               </tr>
@@ -416,7 +451,7 @@ export default function PatientsPage() {
                       <span>{new Date(patient.created_at).toLocaleDateString('id-ID')}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
                       <button 
                         onClick={() => openViewModal(patient)}
@@ -574,6 +609,16 @@ export default function PatientsPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">Password *</label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                    placeholder="Masukkan password awal"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-[var(--foreground)] mb-2">Telepon</label>
                   <input
                     type="tel"
@@ -638,10 +683,11 @@ export default function PatientsPage() {
                 </button>
                 <button
                   onClick={handleCreate}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-all"
+                  disabled={createLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-60"
                 >
-                  <Save className="w-4 h-4" />
-                  Simpan Pasien
+                  {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {createLoading ? 'Menyimpan...' : 'Simpan Pasien'}
                 </button>
               </div>
             </div>
@@ -679,6 +725,16 @@ export default function PatientsPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">Password Baru (opsional)</label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                    placeholder="Kosongkan jika tidak mengubah password"
                   />
                 </div>
                 <div>
@@ -879,10 +935,11 @@ export default function PatientsPage() {
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
+                  disabled={deleteLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all disabled:opacity-60"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Hapus Pasien
+                  {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deleteLoading ? 'Menghapus...' : 'Hapus Pasien'}
                 </button>
               </div>
             </div>

@@ -263,13 +263,13 @@ export default function ScansPage() {
 
         {/* Progress Steps - Responsive */}
         <div className="mb-6 lg:mb-8">
-          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6 shadow-sm">
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6 shadow-sm animate-fade-in hover-lift">
             <h3 className="text-lg font-semibold text-[var(--foreground)] mb-6">Progress Workflow</h3>
             
             {/* Desktop: Horizontal, Mobile: Vertical */}
             <div className="hidden md:flex items-center justify-between">
               {steps.map((step, index) => (
-                <div key={step.number} className="flex-1 relative">
+                <div key={step.number} className="flex-1 relative animate-slide-up" style={{ animationDelay: `${index * 80}ms` }}>
                   <div className="flex flex-col items-center">
                     {/* Step Circle */}
                     <div className={`w-14 h-14 rounded-full flex items-center justify-center ${getStepColor(step.status)} shadow-lg transition-all duration-300 ${step.status === 'active' ? 'ring-4 ring-[var(--accent)]/20 scale-110' : ''}`}>
@@ -305,8 +305,8 @@ export default function ScansPage() {
             
             {/* Mobile: Vertical */}
             <div className="md:hidden space-y-4">
-              {steps.map((step) => (
-                <div key={step.number} className="flex items-start gap-4">
+              {steps.map((step, index) => (
+                <div key={step.number} className="flex items-start gap-4 animate-slide-up" style={{ animationDelay: `${index * 80}ms` }}>
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getStepColor(step.status)} shrink-0 shadow-md ${step.status === 'active' ? 'ring-4 ring-[var(--accent)]/20' : ''}`}>
                     {getStepIcon(step.status)}
                   </div>
@@ -336,7 +336,7 @@ export default function ScansPage() {
         <div className="space-y-8">
           {/* Step 1: Patient Selection */}
           {currentStep === 1 && (
-            <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm">
+            <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm animate-scale-in hover-lift">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-xl flex items-center justify-center">
                   <Users className="w-6 h-6 text-[var(--accent)]" />
@@ -356,13 +356,48 @@ export default function ScansPage() {
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
                     onFocus={() => setShowPatientDropdown(true)}
-                    className="w-full pl-10 pr-4 py-3 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                    className={`w-full pl-10 pr-4 py-3 border border-[var(--muted)]/30 bg-[var(--surface)] text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 rounded-xl ${showPatientDropdown ? 'rounded-b-none border-b-0' : ''}`}
                   />
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                  <ChevronDown
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--muted)] cursor-pointer"
+                    onMouseDown={(e) => { e.preventDefault(); setShowPatientDropdown((v) => !v); }}
+                  />
+                  {showPatientDropdown && (
+                    <div className="absolute left-0 right-0 top-full mt-0 z-20 bg-[var(--surface)] border border-[var(--muted)]/30 border-t-0 rounded-b-xl rounded-t-none shadow-lg max-h-60 overflow-y-auto animate-dropdown ring-1 ring-[var(--accent)]/15 scrollbar-thin">
+                      {filteredPatients.length > 0 ? (
+                        <div className="divide-y divide-[var(--muted)]/10">
+                          {filteredPatients.map((patient) => (
+                            <button
+                              key={patient.id}
+                              onClick={() => handlePatientSelect(patient)}
+                              className="w-full px-4 py-3 text-left hover:bg-[var(--muted)]/5"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-[var(--accent)]/10 rounded-full flex items-center justify-center">
+                                  <span className="text-[var(--accent)] text-sm font-medium">
+                                    {patient.full_name?.charAt(0).toUpperCase() || patient.email.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-[var(--foreground)]">{patient.full_name || 'Nama tidak tersedia'}</p>
+                                  <p className="text-sm text-[var(--muted)]">{patient.email}</p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-6 py-6 text-center text-sm text-[var(--muted)] flex items-center justify-center gap-2">
+                          <Users className="w-4 h-4 opacity-70" />
+                          <span>Tidak ada pasien ditemukan</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 {selectedPatient && (
-                  <div className="mt-4 p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg">
+                  <div className="mt-4 p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg animate-fade-in">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-[var(--accent)]/20 rounded-full flex items-center justify-center">
@@ -385,40 +420,12 @@ export default function ScansPage() {
                   </div>
                 )}
                 
-                {showPatientDropdown && patientSearch && (
-                  <div className="absolute z-10 w-full mt-1 bg-[var(--surface)] border border-[var(--muted)]/30 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {filteredPatients.length > 0 ? (
-                      filteredPatients.map((patient) => (
-                        <button
-                          key={patient.id}
-                          onClick={() => handlePatientSelect(patient)}
-                          className="w-full px-4 py-3 text-left hover:bg-[var(--muted)]/5 border-b border-[var(--muted)]/10 last:border-b-0"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-[var(--accent)]/10 rounded-full flex items-center justify-center">
-                              <span className="text-[var(--accent)] text-sm font-medium">
-                                {patient.full_name?.charAt(0).toUpperCase() || patient.email.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-[var(--foreground)]">{patient.full_name || 'Nama tidak tersedia'}</p>
-                              <p className="text-sm text-[var(--muted)]">{patient.email}</p>
-                            </div>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-3 text-center text-[var(--muted)]">
-                        Tidak ada pasien ditemukan
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* dropdown moved inside input container for better alignment */}
                 
                 {selectedPatient && (
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="mt-8 w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl hover:brightness-110 transition-all shadow-md font-semibold text-base"
+                    className="mt-8 w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl hover:brightness-110 transition-all shadow-md font-semibold text-base active:scale-[.98]"
                   >
                     Lanjut ke Upload Gambar
                     <ArrowRight className="w-5 h-5" />
@@ -430,9 +437,9 @@ export default function ScansPage() {
 
           {/* Step 2: Upload & Analysis */}
           {currentStep === 2 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
               {/* Upload Section */}
-              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm">
+              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm animate-scale-in hover-lift">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-xl flex items-center justify-center">
                     <Upload className="w-6 h-6 text-[var(--accent)]" />
@@ -444,7 +451,7 @@ export default function ScansPage() {
                 </div>
                 
                 {!imagePreview ? (
-                  <div className="border-2 border-dashed border-[var(--accent)]/30 rounded-xl p-12 text-center bg-[var(--accent)]/5 hover:bg-[var(--accent)]/10 transition-colors">
+                  <div className="border-2 border-dashed border-[var(--accent)]/30 rounded-xl p-12 text-center bg-[var(--accent)]/5 hover:bg-[var(--accent)]/10 transition-colors animate-fade-in">
                     <FileImage className="w-16 h-16 text-[var(--accent)] mx-auto mb-4" />
                     <p className="text-[var(--foreground)] font-medium mb-2">Drag & drop gambar di sini</p>
                     <p className="text-[var(--muted)] text-sm mb-6">atau klik tombol di bawah untuk memilih file</p>
@@ -464,8 +471,8 @@ export default function ScansPage() {
                     </label>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="relative h-64 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="relative h-64 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 animate-scale-in">
                       <Image
                         src={imagePreview || ''}
                         alt="Preview retina scan"
@@ -486,7 +493,7 @@ export default function ScansPage() {
                     <button
                       onClick={startAnalysis}
                       disabled={isAnalyzing}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl font-semibold hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl font-semibold hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-[.98]"
                     >
                       <Brain className="w-5 h-5" />
                       {isAnalyzing ? 'Menganalisis...' : 'Mulai Analisis AI'}
@@ -496,7 +503,7 @@ export default function ScansPage() {
               </div>
               
               {/* Analysis Section */}
-              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm">
+              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm animate-scale-in hover-lift">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-xl flex items-center justify-center">
                     <Brain className="w-6 h-6 text-[var(--accent)]" />
@@ -508,7 +515,8 @@ export default function ScansPage() {
                 </div>
                 
                 {isAnalyzing ? (
-                  <div className="text-center py-12 bg-[var(--accent)]/5 rounded-xl">
+                  <div className="text-center py-12 bg-[var(--accent)]/5 rounded-xl animate-fade-in">
+                    <div className="h-1 shimmer rounded-full mb-6" />
                     <div className="w-20 h-20 border-4 border-[var(--accent)]/30 border-t-[var(--accent)] rounded-full animate-spin mx-auto mb-6" />
                     <p className="text-[var(--foreground)] font-semibold mb-2 text-lg">AI sedang menganalisis gambar...</p>
                     <p className="text-[var(--muted)]">Estimasi: 30-60 detik</p>
@@ -531,7 +539,7 @@ export default function ScansPage() {
 
           {/* Step 3: Results & Save */}
           {currentStep === 3 && analysisResult && (
-            <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm">
+            <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-8 shadow-sm animate-scale-in hover-lift">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
                   <FileCheck className="w-6 h-6 text-green-500" />
@@ -542,10 +550,10 @@ export default function ScansPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
                 {/* Results */}
                 <div className="space-y-6">
-                  <div className="bg-gradient-to-br from-[var(--accent)]/5 to-[var(--accent)]/10 p-6 rounded-xl border border-[var(--accent)]/20">
+                  <div className="bg-gradient-to-br from-[var(--accent)]/5 to-[var(--accent)]/10 p-6 rounded-xl border border-[var(--accent)]/20 animate-slide-up hover-lift">
                     <h4 className="font-bold text-[var(--foreground)] mb-6 text-lg">Hasil Diagnosa</h4>
                     
                     <div className="space-y-3">
@@ -575,9 +583,9 @@ export default function ScansPage() {
                   </div>
                   
                   {imagePreview && (
-                    <div>
+                    <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
                       <h4 className="font-semibold text-[var(--foreground)] mb-3">Gambar Scan</h4>
-                      <div className="relative h-48 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+                      <div className="relative h-48 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 animate-scale-in">
                         <Image
                           src={imagePreview || ''}
                           alt="Retina scan"
@@ -591,7 +599,7 @@ export default function ScansPage() {
                 </div>
                 
                 {/* Notes & Save */}
-                <div className="space-y-6">
+                <div className="space-y-6 animate-slide-up" style={{ animationDelay: '120ms' }}>
                   <div>
                     <label className="block text-base font-semibold text-[var(--foreground)] mb-3">Catatan Dokter (Opsional)</label>
                     <textarea
@@ -606,14 +614,14 @@ export default function ScansPage() {
                   <div className="space-y-3">
                     <button
                       onClick={saveScanResult}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl hover:brightness-110 transition-all shadow-md font-semibold text-base"
+                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl hover:brightness-110 transition-all shadow-md font-semibold text-base active:scale-[.98]"
                     >
                       <Save className="w-5 h-5" />
                       Simpan Hasil Scan
                     </button>
                     <button
                       onClick={resetScan}
-                      className="w-full px-6 py-3 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/5 rounded-xl transition-all font-medium"
+                      className="w-full px-6 py-3 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/5 rounded-xl transition-all font-medium active:scale-[.98]"
                     >
                       Mulai Scan Baru
                     </button>
@@ -626,7 +634,7 @@ export default function ScansPage() {
 
         {/* Recent Scans */}
         <div className="mt-8">
-          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6 animate-fade-in hover-lift">
             <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Scan Terbaru</h3>
             
             <div className="text-center py-12">
