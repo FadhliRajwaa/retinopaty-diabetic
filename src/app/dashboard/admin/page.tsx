@@ -18,40 +18,75 @@ import {
   Settings,
   BarChart3,
   Eye,
-  Calendar,
   Shield
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { useRouter } from "next/navigation";
+
+type AdminApiResponse = {
+  stats: { totalPatients: number; scansToday: number; highRiskScans30d: number };
+  diagnosisStats: { DR: number; NO_DR: number };
+  monthlyTrend: { month: string; count: number }[];
+  activities: { id: string; title: string; description: string; time: string; type: 'info'|'success'|'warning'|'error'; source: 'patient'|'scan'|'report' }[];
+  updatedAt: string;
+};
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dashLoading, setDashLoading] = useState(true);
+  const [data, setData] = useState<AdminApiResponse | null>(null);
 
   useEffect(() => {
-    const checkUser = async () => {
+    const init = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         window.location.href = "/auth/login?next=/dashboard/admin";
         return;
       }
-
       const role = (user.user_metadata as { role?: string } | null)?.role;
       if (role !== "admin") {
         window.location.href = "/dashboard/patient";
         return;
       }
-
       setUser(user);
-      setLoading(false);
-    };
+      setAuthLoading(false);
 
-    checkUser();
+      const fetchDashboard = async () => {
+        try {
+          setDashLoading(true);
+          const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+          const json = await res.json();
+          if (res.ok) setData(json as AdminApiResponse);
+        } catch (e) {
+          console.error('Failed to load admin dashboard', e);
+        } finally {
+          setDashLoading(false);
+        }
+      };
+
+      await fetchDashboard();
+
+      // Supabase Realtime: refetch on table changes
+      const channel = supabase
+        .channel('admin-dashboard')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, fetchDashboard)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scans' }, fetchDashboard)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scan_results' }, fetchDashboard)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, fetchDashboard)
+        .subscribe();
+
+      return () => {
+        try { supabase.removeChannel(channel); } catch {}
+      };
+    };
+    void init();
   }, []);
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -66,42 +101,19 @@ export default function AdminDashboard() {
     return null;
   }
 
-  // Mock data - Dalam implementasi nyata, ini akan diambil dari database
-  const mockStats = {
-    totalPatients: 1247,
-    patientsThisMonth: 89,
-    totalScans: 3456,
-    scansToday: 23,
-    highRiskPatients: 34,
-    completedDiagnoses: 98.7
+  const stats = data?.stats;
+  const diag = data?.diagnosisStats;
+  const trend = data?.monthlyTrend || [];
+  const totalDiag = (diag?.DR || 0) + (diag?.NO_DR || 0);
+  const drPct = totalDiag ? Math.round(((diag?.DR || 0) / totalDiag) * 100) : 0;
+  const noDrPct = totalDiag ? 100 - drPct : 0;
+  const trendMax = trend.reduce((m, p) => Math.max(m, p.count), 0);
+  const pickIcon = (source: 'patient'|'scan'|'report', type: 'info'|'success'|'warning'|'error') => {
+    if (source === 'patient') return UserPlus;
+    if (source === 'report') return FileText;
+    return type === 'warning' ? AlertTriangle : Eye;
   };
-
-  const mockActivities = [
-    {
-      id: '1',
-      title: 'Hasil Scan Diterima',
-      description: 'Pasien John Doe - Diabetic Retinopathy terdeteksi (Severity: Moderate)',
-      time: '5 menit yang lalu',
-      icon: Eye,
-      type: 'warning' as const
-    },
-    {
-      id: '2', 
-      title: 'Pasien Baru Terdaftar',
-      description: 'Jane Smith telah bergabung sebagai pasien baru',
-      time: '15 menit yang lalu',
-      icon: UserPlus,
-      type: 'success' as const
-    },
-    {
-      id: '3',
-      title: 'Laporan Harian Selesai',
-      description: 'Laporan analisis retina hari ini telah diselesaikan',
-      time: '1 jam yang lalu',
-      icon: FileText,
-      type: 'info' as const
-    }
-  ];
+  const activitiesForCard = (data?.activities || []).map(a => ({ ...a, icon: pickIcon(a.source, a.type) }));
 
   return (
     <AdminLayout>
@@ -130,40 +142,52 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            title="Total Pasien"
-            value={mockStats.totalPatients.toLocaleString('id-ID')}
-            change="+12% dari bulan lalu"
-            changeType="increase"
-            icon={Users}
-            description="Pasien terdaftar aktif"
-          />
-          <StatCard
-            title="Scan Hari Ini"
-            value={mockStats.scansToday}
-            change="23 scan baru"
-            changeType="neutral"
-            icon={Eye}
-            description="Hasil retina scan"
-          />
-          <StatCard
-            title="Risiko Tinggi"
-            value={mockStats.highRiskPatients}
-            change="Perlu perhatian"
-            changeType="warning"
-            icon={AlertTriangle}
-            description="Pasien berisiko tinggi"
-          />
-          <StatCard
-            title="Akurasi Diagnosa"
-            value={`${mockStats.completedDiagnoses}%`}
-            change="+2.3% improvement"
-            changeType="increase"
-            icon={CheckCircle}
-            description="Tingkat akurasi AI"
-          />
-        </div>
+        {dashLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="rounded-2xl bg-[var(--surface)]/80 backdrop-blur border border-[var(--muted)]/20 p-6">
+                <div className="h-4 w-24 shimmer rounded mb-3" />
+                <div className="h-8 w-32 shimmer rounded mb-2" />
+                <div className="h-3 w-40 shimmer rounded" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+            <StatCard
+              title="Total Pasien"
+              value={(stats?.totalPatients ?? 0).toLocaleString('id-ID')}
+              change={data?.updatedAt ? `Update: ${new Date(data.updatedAt).toLocaleTimeString('id-ID')}` : undefined}
+              changeType="neutral"
+              icon={Users}
+              description="Pasien terdaftar aktif"
+            />
+            <StatCard
+              title="Scan Hari Ini"
+              value={stats?.scansToday ?? 0}
+              change="Realtime"
+              changeType="neutral"
+              icon={Eye}
+              description="Hasil retina scan"
+            />
+            <StatCard
+              title="Risiko Tinggi 30 Hari"
+              value={stats?.highRiskScans30d ?? 0}
+              change="Prediksi DR"
+              changeType="warning"
+              icon={AlertTriangle}
+              description="Perlu perhatian"
+            />
+            <StatCard
+              title="Diagnosa 30 Hari"
+              value={totalDiag}
+              change={`DR ${drPct}% · Normal ${noDrPct}%`}
+              changeType="neutral"
+              icon={CheckCircle}
+              description="Distribusi hasil"
+            />
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -176,78 +200,104 @@ export default function AdminDashboard() {
                 description="Unggah dan analisis gambar retina pasien dengan AI diagnostik"
                 icon={Upload}
                 color="primary"
-                onClick={() => console.log('Upload clicked')}
+                onClick={() => router.push('/dashboard/admin/scans')}
               />
               <QuickActionCard
                 title="Tambah Pasien"
                 description="Daftarkan pasien baru ke dalam sistem"
                 icon={UserPlus}
                 color="success"
-                onClick={() => console.log('Add patient clicked')}
+                onClick={() => router.push('/dashboard/admin/patients')}
               />
               <QuickActionCard
                 title="Lihat Laporan"
                 description="Akses laporan komprehensif dan analisis data"
                 icon={FileText}
                 color="secondary"
-                onClick={() => console.log('Reports clicked')}
+                onClick={() => router.push('/dashboard/admin/reports')}
               />
               <QuickActionCard
                 title="Pengaturan Sistem"
                 description="Konfigurasi sistem dan parameter AI"
                 icon={Settings}
                 color="warning"
-                onClick={() => console.log('Settings clicked')}
+                onClick={() => router.push('/dashboard/admin/settings')}
               />
             </div>
           </div>
 
           {/* Recent Activities */}
           <div>
-            <RecentActivityCard
-              title="Aktivitas Terbaru"
-              activities={mockActivities}
-            />
+            {dashLoading ? (
+              <div className="rounded-2xl bg-[var(--surface)]/80 backdrop-blur border border-[var(--muted)]/20 p-6">
+                <div className="h-5 w-48 shimmer rounded mb-6" />
+                {[0,1,2,3].map(i => (
+                  <div key={i} className="flex items-start gap-4 p-3 rounded-xl">
+                    <div className="w-8 h-8 shimmer rounded-lg" />
+                    <div className="flex-1">
+                      <div className="h-3 w-40 shimmer rounded mb-2" />
+                      <div className="h-3 w-64 shimmer rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <RecentActivityCard
+                title="Aktivitas Terbaru"
+                activities={activitiesForCard}
+              />
+            )}
           </div>
         </div>
 
         {/* Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Chart Placeholder */}
-          <ChartCard title="Statistik Diagnosa" icon={BarChart3}>
-            <div className="h-64 flex items-center justify-center bg-gradient-to-br from-[var(--accent)]/5 to-transparent rounded-xl border border-[var(--accent)]/10">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 text-[var(--accent)] mx-auto mb-4" />
-                <p className="text-[var(--muted)] text-sm">Chart akan diimplementasikan</p>
-                <p className="text-[var(--muted)] text-xs">dengan library seperti Chart.js atau Recharts</p>
+          {/* Diagnosis Stats (simple stacked bar) */}
+          <ChartCard title="Statistik Diagnosa (30 Hari)" icon={BarChart3}>
+            {dashLoading ? (
+              <div className="h-64 shimmer rounded-xl" />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm text-[var(--muted)]">
+                  <span>Total Diagnosa</span>
+                  <span>{totalDiag}</span>
+                </div>
+                <div className="h-8 w-full rounded-lg overflow-hidden border border-[var(--muted)]/20 flex">
+                  <div className="h-full bg-red-500/70" style={{ width: `${drPct}%` }} title={`DR ${drPct}%`} />
+                  <div className="h-full bg-green-500/70" style={{ width: `${noDrPct}%` }} title={`Normal ${noDrPct}%`} />
+                </div>
+                <div className="flex items-center justify-between text-xs text-[var(--muted)]">
+                  <span>DR: {diag?.DR ?? 0}</span>
+                  <span>Normal: {diag?.NO_DR ?? 0}</span>
+                </div>
               </div>
-            </div>
+            )}
           </ChartCard>
 
-          {/* Patient Overview Chart */}
+          {/* Monthly Patients Trend (simple bars) */}
           <ChartCard title="Trend Pasien Bulanan" icon={Activity}>
-            <div className="h-64 flex items-center justify-center bg-gradient-to-br from-green-500/5 to-transparent rounded-xl border border-green-500/10">
-              <div className="text-center">
-                <Activity className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-[var(--muted)] text-sm">Trend analysis chart</p>
-                <p className="text-[var(--muted)] text-xs">Menampilkan pertumbuhan pasien</p>
+            {dashLoading ? (
+              <div className="h-64 shimmer rounded-xl" />
+            ) : (
+              <div className="h-64 flex items-end gap-3 px-2">
+                {trend.map((p, idx) => {
+                  const hPct = trendMax ? Math.round((p.count / trendMax) * 100) : 0;
+                  const [y, m] = p.month.split('-');
+                  return (
+                    <div key={`${p.month}-${idx}`} className="flex flex-col items-center gap-2">
+                      <div className="w-8 bg-[var(--accent)]/70 rounded-t-md border border-[var(--accent)]/30" style={{ height: `${Math.max(hPct, 6)}%` }} />
+                      <div className="text-[10px] text-[var(--muted)]">
+                        {m}/{y.slice(2)}
+                      </div>
+                      <div className="text-[10px] text-[var(--muted)]">{p.count}</div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </ChartCard>
         </div>
-
-        {/* Calendar Section */}
-        <div className="mt-8">
-          <ChartCard title="Jadwal & Appointment" icon={Calendar} className="w-full">
-            <div className="h-48 flex items-center justify-center bg-gradient-to-br from-blue-500/5 to-transparent rounded-xl border border-blue-500/10">
-              <div className="text-center">
-                <Calendar className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-                <p className="text-[var(--muted)] text-sm">Kalender appointment</p>
-                <p className="text-[var(--muted)] text-xs">Kelola jadwal konsultasi pasien</p>
-              </div>
-            </div>
-          </ChartCard>
-        </div>
+        {/* Jadwal & Appointment dihapus sesuai requirement */}
       </div>
     </AdminLayout>
   );

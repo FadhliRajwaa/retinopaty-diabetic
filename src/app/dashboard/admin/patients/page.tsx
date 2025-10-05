@@ -800,10 +800,11 @@ export default function PatientsPage() {
                 </button>
                 <button
                   onClick={handleUpdate}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-all"
+                  disabled={updateLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Save className="w-4 h-4" />
-                  Update Pasien
+                  {updateLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {updateLoading ? 'Menyimpan...' : 'Update Pasien'}
                 </button>
               </div>
             </div>
