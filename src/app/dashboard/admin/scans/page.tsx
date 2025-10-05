@@ -120,24 +120,42 @@ export default function ScansPage() {
 
   const startAnalysis = async () => {
     if (!uploadedImage || !selectedPatient) return;
-    
     setIsAnalyzing(true);
-    
-    // Simulate AI analysis
-    setTimeout(() => {
-      const mockResult: ScanResult = {
+    try {
+      const fd = new FormData();
+      fd.append('image', uploadedImage);
+      const res = await fetch('/api/ai/dr/predict', {
+        method: 'POST',
+        body: fd,
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || 'Gagal menganalisis gambar');
+
+      const raw = data.result || {};
+      const pred = String(raw.predicted_class || '').toUpperCase();
+      const prediction: 'DR' | 'NO_DR' = pred === 'DR' ? 'DR' : 'NO_DR';
+      const confRaw = typeof raw.confidence === 'number' ? raw.confidence : 0;
+      const confidence = Math.round(confRaw * 100) / 100; // tampil 2 desimal
+
+      const result: ScanResult = {
         patient_id: selectedPatient.id,
         patient_name: selectedPatient.full_name || selectedPatient.email,
         image_url: imagePreview || '',
-        prediction: Math.random() > 0.5 ? 'DR' : 'NO_DR',
-        confidence: Math.round((Math.random() * 30 + 70) * 100) / 100,
+        prediction,
+        confidence,
         analysis_date: new Date().toISOString(),
+        notes: undefined,
       };
-      
-      setAnalysisResult(mockResult);
-      setIsAnalyzing(false);
+
+      setAnalysisResult(result);
       setCurrentStep(3);
-    }, 3000);
+    } catch (err) {
+      console.error('AI analysis failed:', err);
+      alert('Gagal menganalisis gambar. Coba lagi.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const saveScanResult = async () => {
