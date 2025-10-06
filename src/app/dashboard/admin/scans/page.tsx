@@ -44,6 +44,14 @@ interface ScanResult {
   notes?: string;
 }
 
+interface RecentScan {
+  id: string;
+  created_at: string;
+  patient_name: string;
+  prediction: 'DR' | 'NO_DR';
+  confidence: number;
+}
+
 export default function ScansPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +68,7 @@ export default function ScansPage() {
   const [manualSuggestion, setManualSuggestion] = useState('');
   const [autoSuggestion, setAutoSuggestion] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -212,7 +220,7 @@ export default function ScansPage() {
         manual_suggestion: manualSuggestion.trim() || null
       };
       
-      const response = await fetch('/api/admin/scans/save', {
+      const res = await fetch('/api/admin/scans/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,18 +228,18 @@ export default function ScansPage() {
         body: JSON.stringify(payload),
       });
       
-      const result = await response.json();
+      const result = await res.json();
       
-      if (!response.ok || !result.ok) {
+      if (!res.ok || !result.ok) {
         throw new Error(result.error || 'Gagal menyimpan hasil scan');
       }
       
       alert('Hasil scan berhasil disimpan!');
       // Refresh recent scans
-      const response = await fetch("/api/admin/scans/history?limit=5");
-      const result = await response.json();
-      if (result.ok) {
-        setRecentScans(result.data || []);
+      const res2 = await fetch("/api/admin/scans/history?limit=5");
+      const result2 = await res2.json();
+      if (result2.ok) {
+        setRecentScans(result2.data || []);
       }
       resetScan();
     } catch (error) {
@@ -753,7 +761,7 @@ export default function ScansPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {recentScans.map((scan, index) => (
+                {recentScans.map((scan) => (
                   <div key={scan.id} className="flex items-center gap-4 p-4 bg-[var(--muted)]/5 rounded-lg border border-[var(--muted)]/10 hover:bg-[var(--muted)]/10 transition-colors">
                     <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-lg flex items-center justify-center">
                       <ScanLine className="w-6 h-6 text-[var(--accent)]" />
