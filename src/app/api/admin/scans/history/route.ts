@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       .from('scan_results')
       .select(`
         *,
-        profiles!scan_results_patient_id_fkey (
+        user_profiles!scan_results_patient_id_fkey (
           full_name,
           email
         )
@@ -46,9 +46,9 @@ export async function GET(req: NextRequest) {
     // Format response with patient info
     const formatted_data = data.map(scan => ({
       ...scan,
-      patient_info: scan.profiles ? {
-        full_name: scan.profiles.full_name,
-        email: scan.profiles.email
+      patient_info: scan.user_profiles ? {
+        full_name: scan.user_profiles.full_name,
+        email: scan.user_profiles.email
       } : null
     }));
 
