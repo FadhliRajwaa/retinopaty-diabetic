@@ -57,6 +57,10 @@ export default function ScansPage() {
   const [analysisResult, setAnalysisResult] = useState<ScanResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [notes, setNotes] = useState('');
+  const [manualSuggestion, setManualSuggestion] = useState('');
+  const [autoSuggestion, setAutoSuggestion] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [recentScans, setRecentScans] = useState<any[]>([]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -78,7 +82,20 @@ export default function ScansPage() {
       setLoading(false);
     };
 
+    const fetchRecentScans = async () => {
+      try {
+        const response = await fetch("/api/admin/scans/history?limit=5");
+        const result = await response.json();
+        if (result.ok) {
+          setRecentScans(result.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching recent scans:", error);
+      }
+    };
+
     checkUser();
+    fetchRecentScans();
     loadPatients();
   }, []);
 
@@ -148,6 +165,27 @@ export default function ScansPage() {
         notes: undefined,
       };
 
+      // Generate automatic doctor suggestion
+      let suggestion = "";
+      if (prediction === "DR") {
+        if (confidence >= 90) {
+          suggestion = "Rujuk segera ke dokter mata spesialis retina. Kemungkinan besar terdapat diabetic retinopathy yang memerlukan penanganan segera.";
+        } else if (confidence >= 70) {
+          suggestion = "Disarankan untuk konsultasi ke dokter mata. Hasil menunjukkan kemungkinan diabetic retinopathy.";
+        } else {
+          suggestion = "Perlu pemeriksaan lebih lanjut. Hasil tidak conclusive, sebaiknya konsultasi dengan dokter mata.";
+        }
+      } else { // NO_DR
+        if (confidence >= 90) {
+          suggestion = "Kondisi retina terlihat normal. Tetap jaga kontrol gula darah dan pemeriksaan rutin setiap 6-12 bulan.";
+        } else if (confidence >= 70) {
+          suggestion = "Kemungkinan besar kondisi retina normal, namun tetap disarankan kontrol rutin setiap 6 bulan.";
+        } else {
+          suggestion = "Hasil tidak conclusive. Disarankan pemeriksaan ulang atau konsultasi dengan dokter mata.";
+        }
+      }
+      
+      setAutoSuggestion(suggestion);
       setAnalysisResult(result);
       setCurrentStep(3);
     } catch (err) {
@@ -161,21 +199,46 @@ export default function ScansPage() {
   const saveScanResult = async () => {
     if (!analysisResult) return;
     
+    setIsSaving(true);
     try {
-      const finalResult = {
-        ...analysisResult,
-        notes,
-        created_by: user?.id
+      const payload = {
+        patient_id: analysisResult.patient_id,
+        patient_name: analysisResult.patient_name,
+        image_url: analysisResult.image_url,
+        prediction: analysisResult.prediction,
+        confidence: analysisResult.confidence,
+        analysis_date: analysisResult.analysis_date,
+        notes: notes.trim() || null,
+        manual_suggestion: manualSuggestion.trim() || null
       };
       
-      // In real implementation, save to scan_results table
-      console.log('Saving scan result:', finalResult);
+      const response = await fetch('/api/admin/scans/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Gagal menyimpan hasil scan');
+      }
       
       alert('Hasil scan berhasil disimpan!');
+      // Refresh recent scans
+      const response = await fetch("/api/admin/scans/history?limit=5");
+      const result = await response.json();
+      if (result.ok) {
+        setRecentScans(result.data || []);
+      }
       resetScan();
     } catch (error) {
       console.error('Error saving scan:', error);
-      alert('Gagal menyimpan hasil scan!');
+      alert(`Gagal menyimpan hasil scan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -187,6 +250,8 @@ export default function ScansPage() {
     setAnalysisResult(null);
     setIsAnalyzing(false);
     setNotes('');
+    setManualSuggestion('');
+    setAutoSuggestion('');
   };
 
   const filteredPatients = patients.filter(patient => 
@@ -616,14 +681,38 @@ export default function ScansPage() {
                   )}
                 </div>
                 
-                {/* Notes & Save */}
+                {/* Notes & Suggestions */}
                 <div className="space-y-6 animate-slide-up" style={{ animationDelay: '120ms' }}>
+                  {/* Auto Suggestion */}
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
+                      <Brain className="w-4 h-4" />
+                      Saran AI
+                    </h4>
+                    <p className="text-blue-700 dark:text-blue-300 text-sm leading-relaxed">
+                      {autoSuggestion}
+                    </p>
+                  </div>
+                  
+                  {/* Manual Suggestion Override */}
                   <div>
-                    <label className="block text-base font-semibold text-[var(--foreground)] mb-3">Catatan Dokter (Opsional)</label>
+                    <label className="block text-base font-semibold text-[var(--foreground)] mb-3">Saran Dokter (Manual - Opsional)</label>
+                    <textarea
+                      value={manualSuggestion}
+                      onChange={(e) => setManualSuggestion(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                      placeholder="Override saran AI dengan rekomendasi manual dari dokter..."
+                    />
+                    <p className="text-xs text-[var(--muted)] mt-1">Jika kosong, akan menggunakan saran AI di atas</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-base font-semibold text-[var(--foreground)] mb-3">Catatan Tambahan (Opsional)</label>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      rows={8}
+                      rows={4}
                       className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
                       placeholder="Tambahkan catatan atau observasi tambahan..."
                     />
@@ -632,10 +721,11 @@ export default function ScansPage() {
                   <div className="space-y-3">
                     <button
                       onClick={saveScanResult}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl hover:brightness-110 transition-all shadow-md font-semibold text-base active:scale-[.98]"
+                      disabled={isSaving}
+                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-white rounded-xl hover:brightness-110 transition-all shadow-md font-semibold text-base active:scale-[.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Save className="w-5 h-5" />
-                      Simpan Hasil Scan
+                      {isSaving ? 'Menyimpan...' : 'Simpan Hasil Scan'}
                     </button>
                     <button
                       onClick={resetScan}
@@ -655,11 +745,45 @@ export default function ScansPage() {
           <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6 animate-fade-in hover-lift">
             <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Scan Terbaru</h3>
             
-            <div className="text-center py-12">
-              <ScanLine className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-[var(--foreground)] mb-2">Belum ada scan</h4>
-              <p className="text-[var(--muted)]">Mulai dengan mengupload scan retina pertama</p>
-            </div>
+            {recentScans.length === 0 ? (
+              <div className="text-center py-12">
+                <ScanLine className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-[var(--foreground)] mb-2">Belum ada scan</h4>
+                <p className="text-[var(--muted)]">Mulai dengan mengupload scan retina pertama</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentScans.map((scan, index) => (
+                  <div key={scan.id} className="flex items-center gap-4 p-4 bg-[var(--muted)]/5 rounded-lg border border-[var(--muted)]/10 hover:bg-[var(--muted)]/10 transition-colors">
+                    <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-lg flex items-center justify-center">
+                      <ScanLine className="w-6 h-6 text-[var(--accent)]" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-[var(--foreground)]">{scan.patient_name}</h4>
+                      <div className="flex items-center gap-4 text-sm text-[var(--muted)] mt-1">
+                        <span>{new Date(scan.created_at).toLocaleDateString('id-ID')}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          scan.prediction === 'DR' 
+                            ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                            : 'bg-green-500/10 text-green-600 dark:text-green-400'
+                        }`}>
+                          {scan.prediction === 'DR' ? 'DR' : 'Normal'}
+                        </span>
+                        <span>{scan.confidence}% confidence</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="text-center pt-4">
+                  <button 
+                    className="text-[var(--accent)] hover:text-[var(--accent)]/80 font-medium text-sm"
+                    onClick={() => window.location.href = '/dashboard/admin/history'}
+                  >
+                    Lihat Semua Riwayat →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

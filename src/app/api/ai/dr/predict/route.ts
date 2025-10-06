@@ -18,24 +18,45 @@ export async function POST(req: NextRequest) {
     const b64 = buf.toString("base64");
     const dataUrl = `data:${mime};base64,${b64}`;
 
-    const spaceUrl = process.env.HF_SPACE_URL || DEFAULT_SPACE_URL;
+    const spaceUrl = (process.env.HF_SPACE_URL || DEFAULT_SPACE_URL).replace(/\/$/, "");
     const token = process.env.HF_SPACE_API_TOKEN; // optional if space is private
 
-    // Gradio REST API v4: POST <space>/run/predict with { data: [<image_data_url>] }
-    const res = await fetch(`${spaceUrl.replace(/\/$/, "")}/run/predict`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ data: [dataUrl] }),
-      // no-store to avoid caching
-      cache: "no-store",
-    });
-
-    const out = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return NextResponse.json({ ok: false, error: out?.error || `Space error ${res.status}` }, { status: res.status });
+    // Try multiple Gradio REST endpoints to avoid 404 across versions
+    const endpoints = [
+      "/run/predict",
+      "/api/predict/",
+      "/api/predict",
+      "/gradio_api/call/predict",
+    ];
+    let out: any = null;
+    let ok = false;
+    let lastStatus = 0;
+    let lastBody: any = null;
+    const payload = { data: [ { image: dataUrl } ] } as const;
+    for (const ep of endpoints) {
+      const url = `${spaceUrl}${ep}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+      });
+      lastStatus = res.status;
+      lastBody = await res.json().catch(() => ({}));
+      if (res.ok) {
+        out = lastBody;
+        ok = true;
+        break;
+      }
+    }
+    if (!ok) {
+      return NextResponse.json(
+        { ok: false, error: lastBody?.error || `Space error ${lastStatus}` },
+        { status: lastStatus || 502 }
+      );
     }
 
     // Gradio response: often { data: [ result ] }
