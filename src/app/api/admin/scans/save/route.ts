@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (profileError || !userProfile || userProfile.role !== 'admin') {
+      console.error('Profile check failed:', { profileError, userProfile });
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
@@ -40,6 +41,13 @@ export async function POST(req: NextRequest) {
         error: "Field patient_id dan prediction wajib diisi" 
       }, { status: 400 });
     }
+
+    console.log('[DEBUG] Save scan - User info:', {
+      auth_user_id: user.id,
+      profile_id: userProfile.id,
+      patient_id,
+      role: userProfile.role
+    });
 
     // Generate automatic doctor suggestion based on prediction and confidence
     let auto_suggestion = "";
