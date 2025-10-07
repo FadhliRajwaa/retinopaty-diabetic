@@ -31,6 +31,23 @@ interface ScanResult {
   created_at: string;
 }
 
+interface ApiScanResult {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  patient_info?: { email?: string; full_name?: string };
+  user_profiles?: { email?: string; full_name?: string };
+  image_url?: string;
+  prediction: string;
+  confidence: string | number;
+  analysis_date?: string;
+  created_at: string;
+  notes?: string;
+  doctor_suggestion?: string;
+  manual_suggestion?: string;
+  created_by?: string;
+}
+
 export default function ReportsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,38 +58,35 @@ export default function ReportsPage() {
 
   const loadScanResults = async () => {
     try {
-      // Mock data - In real implementation, fetch from scan_results table
-      const mockData: ScanResult[] = [
-        {
-          id: '1',
-          patient_id: 'p1',
-          patient_name: 'John Doe',
-          patient_email: 'john@example.com',
-          image_url: '/mock-retina-1.jpg',
-          prediction: 'DR',
-          confidence: 92.3,
-          analysis_date: '2024-01-15T10:30:00Z',
-          notes: 'Moderate diabetic retinopathy detected. Recommend follow-up in 3 months.',
-          created_by: 'admin',
-          created_at: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          patient_id: 'p2',
-          patient_name: 'Jane Smith',
-          patient_email: 'jane@example.com',
-          image_url: '/mock-retina-2.jpg',
-          prediction: 'NO_DR',
-          confidence: 87.1,
-          analysis_date: '2024-01-14T14:15:00Z',
-          created_by: 'admin',
-          created_at: '2024-01-14T14:15:00Z'
-        }
-      ];
+      // Fetch REAL data from scan_results table via API
+      const response = await fetch('/api/admin/scans/history?limit=100');
+      const result = await response.json();
       
-      setScanResults(mockData);
+      if (result.ok && result.data) {
+        // Transform data to match interface
+        const transformedData: ScanResult[] = result.data.map((scan: ApiScanResult) => ({
+          id: scan.id,
+          patient_id: scan.patient_id,
+          patient_name: scan.patient_name,
+          patient_email: scan.patient_info?.email || scan.user_profiles?.email || 'N/A',
+          image_url: scan.image_url || '/placeholder-retina.jpg',
+          prediction: scan.prediction as 'DR' | 'NO_DR',
+          confidence: typeof scan.confidence === 'string' ? parseFloat(scan.confidence) : Number(scan.confidence || 0),
+          analysis_date: scan.analysis_date || scan.created_at,
+          notes: scan.notes || scan.doctor_suggestion || scan.manual_suggestion,
+          created_by: scan.created_by || 'admin',
+          created_at: scan.created_at
+        }));
+        
+        setScanResults(transformedData);
+        console.log('[DEBUG] Loaded scan results:', transformedData.length, 'records');
+      } else {
+        console.error('Failed to load scan results:', result.error);
+        setScanResults([]);
+      }
     } catch (error) {
       console.error('Error loading scan results:', error);
+      setScanResults([]);
     }
   };
 
@@ -98,7 +112,27 @@ export default function ReportsPage() {
     };
 
     checkUser();
-  }, []);
+
+    // Auto-refresh data every 30 seconds
+    const interval = setInterval(() => {
+      if (!loading) {
+        loadScanResults();
+      }
+    }, 30000);
+
+    // Refresh when window gains focus (user comes back to tab)
+    const handleFocus = () => {
+      if (!loading) {
+        loadScanResults();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loading]);
 
   const filteredResults = scanResults.filter(result => {
     const matchesSearch = result.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
