@@ -42,13 +42,14 @@ export async function POST(req: NextRequest) {
     
     const out = await res.json();
     
+    // FastAPI response format: { ok: true, result: { predicted_class, confidence, probabilities, ... } }
     if (!out.ok) {
       return NextResponse.json(
-        { ok: false, error: out.error || 'Flask API returned error' },
+        { ok: false, error: out.error || 'FastAPI returned error' },
         { status: 500 }
       );
     }
-    // Flask response format: { ok: true, result: { predicted_class, confidence, probabilities, ... } }
+    
     const result = out.result;
     
     return NextResponse.json({ 
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
         confidence: result.confidence,
         probabilities: result.probabilities,
         raw_sigmoid: result.raw_sigmoid,
-        threshold: result.threshold
+        processing_time_ms: result.processing_time_ms
       } 
     });
   } catch (e: unknown) {
