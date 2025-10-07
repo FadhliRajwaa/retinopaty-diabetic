@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs"; // ensure Node runtime for external fetch
 
 // Configure your Space URL and optional token
-const DEFAULT_SPACE_URL = "https://FadhliRajwaa-retinai.hf.space";
+const DEFAULT_SPACE_URL = "https://FadhliRajwaa-RetinaAI.hf.space";
 
 export async function POST(req: NextRequest) {
   try {
