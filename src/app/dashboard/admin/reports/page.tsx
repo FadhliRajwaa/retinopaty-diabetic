@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
+import Image from "next/image";
 import { 
   Search,
   Filter,
@@ -55,6 +56,8 @@ export default function ReportsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [selectedDateRange, setSelectedDateRange] = useState('');
+  const [selectedDetail, setSelectedDetail] = useState<ScanResult | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const loadScanResults = async () => {
     try {
@@ -133,6 +136,16 @@ export default function ReportsPage() {
       window.removeEventListener('focus', handleFocus);
     };
   }, [loading]);
+
+  const handleViewDetail = (result: ScanResult) => {
+    setSelectedDetail(result);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedDetail(null);
+  };
 
   const filteredResults = scanResults.filter(result => {
     const matchesSearch = result.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -312,9 +325,6 @@ export default function ReportsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                   Confidence
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                  Dokter
-                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                   Aksi
                 </th>
@@ -356,23 +366,23 @@ export default function ReportsPage() {
                   <td className="px-6 py-4 text-sm text-[var(--foreground)]">
                     {result.confidence}%
                   </td>
-                  <td className="px-6 py-4 text-sm text-[var(--muted)]">
-                    Dr. {result.created_by}
-                  </td>
                   <td className="px-6 py-4 text-right">
-                    <button 
-                      className="p-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-[var(--accent)]/10"
-                      title="Lihat Detail"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleViewDetail(result)}
+                        className="p-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-[var(--accent)]/10"
+                        title="Lihat Detail Lengkap"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               
               {filteredResults.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <FileImage className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-[var(--foreground)] mb-2">Tidak ada data scan</h3>
                     <p className="text-[var(--muted)]">
@@ -465,14 +475,17 @@ export default function ReportsPage() {
                   </div>
                   
                   <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                    <span>👨‍⚕️</span>
-                    <span>Dr. {result.created_by}</span>
+                    <span>📅</span>
+                    <span>Scan ID: {result.id.substring(0, 8)}...</span>
                   </div>
                 </div>
 
                 {/* Action button */}
                 <div className="pt-3 border-t border-[var(--muted)]/10">
-                  <button className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-[var(--accent)] hover:brightness-110 transition-all rounded-lg shadow-sm">
+                  <button 
+                    onClick={() => handleViewDetail(result)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-[var(--accent)] hover:brightness-110 transition-all rounded-lg shadow-sm"
+                  >
                     <Eye className="w-4 h-4" />
                     Lihat Detail Lengkap
                   </button>
@@ -483,6 +496,111 @@ export default function ReportsPage() {
         </div>
 
       </div>
+      
+      {/* Detail Modal */}
+      {showDetailModal && selectedDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--surface)] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-[var(--muted)]/20">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">
+                Detail Scan Retina
+              </h2>
+              <button 
+                onClick={closeDetailModal}
+                className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Patient Info */}
+              <div className="bg-[var(--muted)]/5 rounded-lg p-4">
+                <h3 className="font-semibold text-[var(--foreground)] mb-3">Informasi Pasien</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-[var(--muted)]">Nama Pasien</p>
+                    <p className="font-medium text-[var(--foreground)]">{selectedDetail.patient_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--muted)]">Email</p>
+                    <p className="font-medium text-[var(--foreground)]">{selectedDetail.patient_email}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Scan Results */}
+              <div className="bg-[var(--muted)]/5 rounded-lg p-4">
+                <h3 className="font-semibold text-[var(--foreground)] mb-3">Hasil Analisis AI</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-[var(--muted)]">Tanggal Scan</p>
+                    <p className="font-medium text-[var(--foreground)]">
+                      {new Date(selectedDetail.analysis_date).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--muted)]">Prediksi AI</p>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedDetail.prediction === 'DR'
+                        ? 'bg-red-500/10 text-red-600 border border-red-500/20'
+                        : 'bg-green-500/10 text-green-600 border border-green-500/20'
+                    }`}>
+                      {selectedDetail.prediction === 'DR' ? '🔴 Diabetic Retinopathy' : '✅ Normal'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--muted)]">Confidence Score</p>
+                    <p className="font-bold text-2xl text-[var(--foreground)]">{selectedDetail.confidence}%</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Medical Notes */}
+              {selectedDetail.notes && (
+                <div className="bg-[var(--muted)]/5 rounded-lg p-4">
+                  <h3 className="font-semibold text-[var(--foreground)] mb-3">Catatan & Saran Medis</h3>
+                  <p className="text-[var(--foreground)] leading-relaxed">{selectedDetail.notes}</p>
+                </div>
+              )}
+              
+              {/* Image Preview */}
+              {selectedDetail.image_url && selectedDetail.image_url !== '/placeholder-retina.jpg' && (
+                <div className="bg-[var(--muted)]/5 rounded-lg p-4">
+                  <h3 className="font-semibold text-[var(--foreground)] mb-3">Gambar Retina</h3>
+                  <div className="flex justify-center">
+                    <Image 
+                      src={selectedDetail.image_url} 
+                      alt="Scan Retina" 
+                      width={400}
+                      height={300}
+                      className="max-w-full max-h-64 object-contain rounded-lg border border-[var(--muted)]/20"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-[var(--muted)]/20">
+              <button 
+                onClick={closeDetailModal}
+                className="px-4 py-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
