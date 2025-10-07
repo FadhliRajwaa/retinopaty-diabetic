@@ -26,16 +26,25 @@ export async function POST(req: NextRequest) {
     const blob = new Blob([buf], { type: mime });
     formData.append('image', blob, file.name);
     
+    console.log(`[DEBUG] Calling: ${url}`);
+    console.log(`[DEBUG] File size: ${buf.length} bytes, type: ${mime}`);
+    
     const res = await fetch(url, {
       method: "POST",
       body: formData,
       cache: "no-store",
+      headers: {
+        'Accept': 'application/json',
+      },
+      // Add timeout for HuggingFace Space
+      signal: AbortSignal.timeout(30000), // 30 second timeout
     });
     
     if (!res.ok) {
       const errorText = await res.text().catch(() => 'Unknown error');
+      console.error(`[ERROR] HuggingFace API error ${res.status}:`, errorText);
       return NextResponse.json(
-        { ok: false, error: `Flask API error ${res.status}: ${errorText}` },
+        { ok: false, error: `HuggingFace API error ${res.status}: ${errorText}` },
         { status: res.status }
       );
     }
@@ -64,6 +73,23 @@ export async function POST(req: NextRequest) {
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Internal error";
+    console.error('[ERROR] API route error:', {
+      message,
+      name: e instanceof Error ? e.name : 'Unknown',
+      stack: e instanceof Error ? e.stack : undefined,
+      url: `${process.env.HF_SPACE_URL || DEFAULT_SPACE_URL}/predict`
+    });
+    
+    // Handle specific error types
+    if (e instanceof Error) {
+      if (e.name === 'AbortError') {
+        return NextResponse.json({ ok: false, error: 'Request timeout - HuggingFace Space took too long to respond' }, { status: 504 });
+      }
+      if (e.message.includes('fetch failed')) {
+        return NextResponse.json({ ok: false, error: 'Network error - Cannot reach HuggingFace Space' }, { status: 502 });
+      }
+    }
+    
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
