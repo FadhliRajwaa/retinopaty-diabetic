@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
         confidence: Math.round(confidence * 100) / 100, // round to 2 decimal places
         analysis_date: analysis_date || new Date().toISOString(),
         notes: notes || null,
-        doctor_suggestion: final_suggestion,
+        doctor_suggestion: auto_suggestion, // Auto-generated suggestion
+        manual_suggestion: manual_suggestion || null, // Manual override if provided
         created_by: user.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
