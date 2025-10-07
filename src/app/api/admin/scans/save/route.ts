@@ -5,10 +5,21 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Get current user
+    // Get current user and their profile
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get user profile to get the correct ID for foreign key
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id, role, status')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !userProfile || userProfile.role !== 'admin') {
+      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -65,7 +76,7 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         doctor_suggestion: auto_suggestion, // Auto-generated suggestion
         manual_suggestion: manual_suggestion || null, // Manual override if provided
-        created_by: user.id,
+        created_by: userProfile.id,  // Use user_profiles.id instead of auth.uid
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
