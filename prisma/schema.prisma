@@ -15,56 +15,53 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// User profiles table to store additional user data
+// User profiles table - MATCH ACTUAL SUPABASE SCHEMA
 model UserProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique // Maps to Supabase auth.users.id
-  email     String   @unique
-  fullName  String?
-  role      String   @default("patient") // "admin" or "patient"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @unique @map("user_id") // Maps to Supabase auth.users.id
+  email            String    @unique
+  fullName         String?   @map("full_name")
+  role             String    @default("patient") // "admin" or "patient"
+  status           String?   @default("pending") // "pending", "approved", "rejected", "suspended"
+  phone            String?
+  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
+  gender           String?   // "male", "female", "other"
+  address          String?
+  medicalHistory   String?   @map("medical_history")
+  emergencyContact String?   @map("emergency_contact")
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz
+  approvedBy       String?   @map("approved_by")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
-  patientRecords PatientRecord[]
-  diagnoses      Diagnosis[]
+  scanResultsAsPatient ScanResult[] @relation("PatientScans")
+  scanResultsAsCreator ScanResult[] @relation("CreatorScans")
+  approvedUsers        UserProfile[] @relation("ApprovalRelation")
+  approver             UserProfile?  @relation("ApprovalRelation", fields: [approvedBy], references: [userId])
 
   @@map("user_profiles")
 }
 
-// Patient medical records
-model PatientRecord {
-  id          String   @id @default(cuid())
-  patientId   String
-  imageUrl    String
-  description String?
-  severity    String?  // "normal", "mild", "moderate", "severe"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// Scan results table - MATCH ACTUAL SUPABASE SCHEMA  
+model ScanResult {
+  id               String    @id @default(uuid()) @db.Uuid
+  patientId        String    @map("patient_id") // Reference to user_profiles.id
+  patientName      String    @map("patient_name")
+  imageUrl         String?   @map("image_url")
+  prediction       String    // "DR" or "NO_DR"
+  confidence       Decimal   @db.Decimal // 0-100
+  analysisDate     DateTime  @default(now()) @map("analysis_date") @db.Timestamptz
+  notes            String?
+  doctorSuggestion String?   @map("doctor_suggestion") // Auto-generated suggestion
+  manualSuggestion String?   @map("manual_suggestion") // Manual override by doctor/admin
+  createdBy        String    @map("created_by") // Admin user who performed scan (user_profiles.id)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
-  patient   UserProfile @relation(fields: [patientId], references: [userId])
-  diagnoses Diagnosis[]
+  patient UserProfile @relation("PatientScans", fields: [patientId], references: [id])
+  creator UserProfile @relation("CreatorScans", fields: [createdBy], references: [id])
 
-  @@map("patient_records")
-}
-
-// AI Diagnosis results
-model Diagnosis {
-  id              String   @id @default(cuid())
-  patientRecordId String
-  doctorId        String?
-  aiConfidence    Float?   // AI confidence score (0-1)
-  aiResult        String?  // AI diagnosis result
-  doctorNotes     String?
-  finalDiagnosis  String?  // Final diagnosis by doctor
-  status          String   @default("pending") // "pending", "reviewed", "confirmed"
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  patientRecord PatientRecord @relation(fields: [patientRecordId], references: [id], onDelete: Cascade)
-  doctor        UserProfile?  @relation(fields: [doctorId], references: [userId])
-
-  @@map("diagnoses")
+  @@map("scan_results")
 }
