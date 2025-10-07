@@ -18,13 +18,13 @@ export async function POST(req: NextRequest) {
 
     const spaceUrl = (process.env.HF_SPACE_URL || DEFAULT_SPACE_URL).replace(/\/$/, "");
 
-    // Flask API endpoint
+    // FastAPI endpoint
     const url = `${spaceUrl}/predict`;
     
-    // Create FormData for Flask
+    // Create FormData for FastAPI
     const formData = new FormData();
     const blob = new Blob([buf], { type: mime });
-    formData.append('image', blob, file.name);
+    formData.append('file', blob, file.name);  // FastAPI expects 'file' not 'image'
     
     console.log(`[DEBUG] Calling: ${url}`);
     console.log(`[DEBUG] File size: ${buf.length} bytes, type: ${mime}`);
