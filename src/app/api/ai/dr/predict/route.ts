@@ -15,11 +15,8 @@ export async function POST(req: NextRequest) {
 
     const buf = Buffer.from(await file.arrayBuffer());
     const mime = file.type || "image/jpeg";
-    const b64 = buf.toString("base64");
-    const dataUrl = `data:${mime};base64,${b64}`;
 
     const spaceUrl = (process.env.HF_SPACE_URL || DEFAULT_SPACE_URL).replace(/\/$/, "");
-    const token = process.env.HF_SPACE_API_TOKEN; // optional if space is private
 
     // Flask API endpoint
     const url = `${spaceUrl}/predict`;
