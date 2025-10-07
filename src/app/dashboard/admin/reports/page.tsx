@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
-import Image from "next/image";
 import { 
   Search,
   Filter,
@@ -32,6 +31,18 @@ interface ScanResult {
   created_at: string;
 }
 
+interface PatientSummary {
+  patient_id: string;
+  patient_name: string;
+  patient_email: string;
+  scan_count: number;
+  latest_scan_date: string;
+  latest_prediction: 'DR' | 'NO_DR';
+  latest_confidence: number;
+  has_dr_detected: boolean;
+  scans: ScanResult[];
+}
+
 interface ApiScanResult {
   id: string;
   patient_id: string;
@@ -53,11 +64,10 @@ export default function ReportsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+  const [patientSummaries, setPatientSummaries] = useState<PatientSummary[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [selectedDateRange, setSelectedDateRange] = useState('');
-  const [selectedDetail, setSelectedDetail] = useState<ScanResult | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const loadScanResults = async () => {
     try {
@@ -82,7 +92,38 @@ export default function ReportsPage() {
         }));
         
         setScanResults(transformedData);
-        console.log('[DEBUG] Loaded scan results:', transformedData.length, 'records');
+        
+        // Group by patient
+        const patientGroups = transformedData.reduce((groups, scan) => {
+          const key = scan.patient_id;
+          if (!groups[key]) {
+            groups[key] = [];
+          }
+          groups[key].push(scan);
+          return groups;
+        }, {} as Record<string, ScanResult[]>);
+        
+        // Create patient summaries
+        const summaries: PatientSummary[] = Object.values(patientGroups).map(scans => {
+          const sortedScans = scans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          const latestScan = sortedScans[0];
+          const hasDR = scans.some(scan => scan.prediction === 'DR');
+          
+          return {
+            patient_id: latestScan.patient_id,
+            patient_name: latestScan.patient_name,
+            patient_email: latestScan.patient_email,
+            scan_count: scans.length,
+            latest_scan_date: latestScan.created_at,
+            latest_prediction: latestScan.prediction,
+            latest_confidence: latestScan.confidence,
+            has_dr_detected: hasDR,
+            scans: sortedScans
+          };
+        }).sort((a, b) => new Date(b.latest_scan_date).getTime() - new Date(a.latest_scan_date).getTime());
+        
+        setPatientSummaries(summaries);
+        console.log('[DEBUG] Loaded patient summaries:', summaries.length, 'patients');
       } else {
         console.error('Failed to load scan results:', result.error);
         setScanResults([]);
@@ -137,23 +178,18 @@ export default function ReportsPage() {
     };
   }, [loading]);
 
-  const handleViewDetail = (result: ScanResult) => {
-    setSelectedDetail(result);
-    setShowDetailModal(true);
+  const handleViewDetail = (patientId: string) => {
+    // Navigate to patient detail page
+    window.location.href = `/dashboard/admin/reports/${patientId}`;
   };
 
-  const closeDetailModal = () => {
-    setShowDetailModal(false);
-    setSelectedDetail(null);
-  };
-
-  const filteredResults = scanResults.filter(result => {
-    const matchesSearch = result.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         result.patient_email.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredResults = patientSummaries.filter(patient => {
+    const matchesSearch = patient.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         patient.patient_email.toLowerCase().includes(searchTerm.toLowerCase());
     
     let matchesPeriod = true;
     if (periodFilter !== 'all') {
-      const resultDate = new Date(result.analysis_date);
+      const resultDate = new Date(patient.latest_scan_date);
       const now = new Date();
       
       switch (periodFilter) {
@@ -179,7 +215,7 @@ export default function ReportsPage() {
   const averageConfidence = scanResults.length > 0 
     ? Math.round(scanResults.reduce((sum, r) => sum + r.confidence, 0) / scanResults.length * 10) / 10
     : 0;
-  const activePatients = new Set(scanResults.map(r => r.patient_id)).size;
+  const activePatients = patientSummaries.length;
 
   if (loading) {
     return (
@@ -317,10 +353,13 @@ export default function ReportsPage() {
                   Pasien
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                  Tanggal Scan
+                  Jumlah Scan
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
-                  Hasil AI
+                  Scan Terakhir
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
+                  Status Terbaru
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider">
                   Confidence
@@ -331,23 +370,34 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--muted)]/10">
-              {filteredResults.map((result) => (
-                <tr key={result.id} className="hover:bg-[var(--muted)]/5">
+              {filteredResults.map((patient) => (
+                <tr key={patient.patient_id} className="hover:bg-[var(--muted)]/5">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-[var(--accent)]/10 rounded-full flex items-center justify-center mr-3">
                         <span className="text-[var(--accent)] font-medium text-sm">
-                          {result.patient_name.charAt(0).toUpperCase()}
+                          {patient.patient_name.charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-[var(--foreground)]">{result.patient_name}</span>
-                        <p className="text-xs text-[var(--muted)]">{result.patient_email}</p>
+                        <span className="text-sm font-medium text-[var(--foreground)]">{patient.patient_name}</span>
+                        <p className="text-xs text-[var(--muted)]">{patient.patient_email}</p>
+                        {patient.has_dr_detected && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-800 mt-1">
+                            ⚠️ DR Detected
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm">
+                      <span className="text-2xl font-bold text-[var(--accent)]">{patient.scan_count}</span>
+                      <p className="text-xs text-[var(--muted)]">kali scan</p>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-sm text-[var(--muted)]">
-                    {new Date(result.analysis_date).toLocaleDateString('id-ID', {
+                    {new Date(patient.latest_scan_date).toLocaleDateString('id-ID', {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric',
@@ -356,22 +406,23 @@ export default function ReportsPage() {
                     })}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${result.prediction === 'DR'
-                      ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
-                      : 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      patient.latest_prediction === 'DR'
+                        ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
+                        : 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
                     }`}>
-                      {result.prediction === 'DR' ? 'Diabetic Retinopathy' : 'Normal'}
+                      {patient.latest_prediction === 'DR' ? 'Diabetic Retinopathy' : 'Normal'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-[var(--foreground)]">
-                    {result.confidence}%
+                    {patient.latest_confidence}%
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => handleViewDetail(result)}
+                        onClick={() => handleViewDetail(patient.patient_id)}
                         className="p-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors rounded-lg hover:bg-[var(--accent)]/10"
-                        title="Lihat Detail Lengkap"
+                        title="Lihat Riwayat Lengkap"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
@@ -382,13 +433,13 @@ export default function ReportsPage() {
               
               {filteredResults.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <FileImage className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-[var(--foreground)] mb-2">Tidak ada data scan</h3>
+                    <h3 className="text-lg font-medium text-[var(--foreground)] mb-2">Tidak ada data pasien</h3>
                     <p className="text-[var(--muted)]">
                       {searchTerm || periodFilter !== 'all' 
                         ? 'Coba ubah filter atau kata kunci pencarian'
-                        : 'Belum ada scan retina yang dilakukan'}
+                        : 'Belum ada pasien yang melakukan scan retina'}
                     </p>
                   </td>
                 </tr>
@@ -400,94 +451,98 @@ export default function ReportsPage() {
         {/* Mobile Card Layout */}
         <div className="md:hidden space-y-3">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">Riwayat Scan Pasien</h3>
-            <p className="text-sm text-[var(--muted)] mt-1">{filteredResults.length} riwayat scan</p>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">Riwayat Pasien</h3>
+            <p className="text-sm text-[var(--muted)] mt-1">{filteredResults.length} pasien</p>
           </div>
           
           {filteredResults.length === 0 ? (
             <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-6 text-center">
               <FileImage className="w-12 h-12 text-[var(--muted)] mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-[var(--foreground)] mb-2">Tidak ada data scan</h3>
+              <h3 className="text-lg font-medium text-[var(--foreground)] mb-2">Tidak ada data pasien</h3>
               <p className="text-sm text-[var(--muted)]">
                 {searchTerm || periodFilter !== 'all' 
                   ? 'Coba ubah filter atau kata kunci pencarian'
-                  : 'Belum ada scan retina yang dilakukan'}
+                  : 'Belum ada pasien yang melakukan scan retina'}
               </p>
             </div>
           ) : (
-            filteredResults.map((result) => (
-              <div key={result.id} className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-4">
+            filteredResults.map((patient) => (
+              <div key={patient.patient_id} className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-4">
                 {/* Header dengan avatar dan nama */}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-full flex items-center justify-center shrink-0">
                     <span className="text-[var(--accent)] font-medium text-base">
-                      {result.patient_name.charAt(0).toUpperCase()}
+                      {patient.patient_name.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-base font-semibold text-[var(--foreground)] mb-1">
-                      {result.patient_name}
+                      {patient.patient_name}
                     </h4>
-                    <p className="text-xs text-[var(--muted)]">{result.patient_email}</p>
+                    <p className="text-xs text-[var(--muted)]">{patient.patient_email}</p>
+                    {patient.has_dr_detected && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-800 mt-1">
+                        ⚠️ DR Detected
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Badge hasil di bawah */}
+                {/* Scan Count */}
                 <div className="mb-3">
-                  <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${result.prediction === 'DR'
-                    ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
-                    : 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
+                  <div className="text-center p-3 bg-[var(--accent)]/5 rounded-lg">
+                    <div className="text-2xl font-bold text-[var(--accent)]">{patient.scan_count}</div>
+                    <div className="text-xs text-[var(--muted)]">Total Scan</div>
+                  </div>
+                </div>
+
+                {/* Latest Result */}
+                <div className="mb-3">
+                  <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+                    patient.latest_prediction === 'DR'
+                      ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
+                      : 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
                   }`}>
-                    {result.prediction === 'DR' ? '🔴 Diabetic Retinopathy Terdeteksi' : '✅ Retina Normal'}
+                    {patient.latest_prediction === 'DR' ? '🔴 DR Terdeteksi (Terbaru)' : '✅ Normal (Terbaru)'}
                   </span>
                 </div>
 
-                {/* Info detail */}
+                {/* Latest Scan Info */}
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
                       <span>📅</span>
-                      <span>
-                        {new Date(result.analysis_date).toLocaleDateString('id-ID', {
-                          day: '2-digit',
-                          month: 'short', 
-                          year: 'numeric'
-                        })}
-                      </span>
+                      <span>Scan Terakhir</span>
                     </div>
-                    <div className="text-xs text-[var(--muted)]">
-                      {new Date(result.analysis_date).toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit'
+                    <div className="text-xs text-[var(--foreground)]">
+                      {new Date(patient.latest_scan_date).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'short', 
+                        year: 'numeric'
                       })}
                     </div>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-[var(--muted)]">Akurasi AI</span>
-                    <span className="text-xs font-medium text-[var(--foreground)]">{result.confidence}%</span>
+                    <span className="text-xs text-[var(--muted)]">Confidence Terbaru</span>
+                    <span className="text-xs font-medium text-[var(--foreground)]">{patient.latest_confidence}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-1.5">
                     <div 
                       className="bg-[var(--accent)] h-1.5 rounded-full transition-all duration-300" 
-                      style={{ width: `${result.confidence}%` }}
+                      style={{ width: `${patient.latest_confidence}%` }}
                     ></div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                    <span>📅</span>
-                    <span>Scan ID: {result.id.substring(0, 8)}...</span>
                   </div>
                 </div>
 
                 {/* Action button */}
                 <div className="pt-3 border-t border-[var(--muted)]/10">
                   <button 
-                    onClick={() => handleViewDetail(result)}
+                    onClick={() => handleViewDetail(patient.patient_id)}
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-[var(--accent)] hover:brightness-110 transition-all rounded-lg shadow-sm"
                   >
                     <Eye className="w-4 h-4" />
-                    Lihat Detail Lengkap
+                    Lihat Riwayat Lengkap
                   </button>
                 </div>
               </div>
@@ -496,111 +551,6 @@ export default function ReportsPage() {
         </div>
 
       </div>
-      
-      {/* Detail Modal */}
-      {showDetailModal && selectedDetail && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--surface)] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-[var(--muted)]/20">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                Detail Scan Retina
-              </h2>
-              <button 
-                onClick={closeDetailModal}
-                className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              {/* Patient Info */}
-              <div className="bg-[var(--muted)]/5 rounded-lg p-4">
-                <h3 className="font-semibold text-[var(--foreground)] mb-3">Informasi Pasien</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-[var(--muted)]">Nama Pasien</p>
-                    <p className="font-medium text-[var(--foreground)]">{selectedDetail.patient_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[var(--muted)]">Email</p>
-                    <p className="font-medium text-[var(--foreground)]">{selectedDetail.patient_email}</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Scan Results */}
-              <div className="bg-[var(--muted)]/5 rounded-lg p-4">
-                <h3 className="font-semibold text-[var(--foreground)] mb-3">Hasil Analisis AI</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-[var(--muted)]">Tanggal Scan</p>
-                    <p className="font-medium text-[var(--foreground)]">
-                      {new Date(selectedDetail.analysis_date).toLocaleDateString('id-ID', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[var(--muted)]">Prediksi AI</p>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedDetail.prediction === 'DR'
-                        ? 'bg-red-500/10 text-red-600 border border-red-500/20'
-                        : 'bg-green-500/10 text-green-600 border border-green-500/20'
-                    }`}>
-                      {selectedDetail.prediction === 'DR' ? '🔴 Diabetic Retinopathy' : '✅ Normal'}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[var(--muted)]">Confidence Score</p>
-                    <p className="font-bold text-2xl text-[var(--foreground)]">{selectedDetail.confidence}%</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Medical Notes */}
-              {selectedDetail.notes && (
-                <div className="bg-[var(--muted)]/5 rounded-lg p-4">
-                  <h3 className="font-semibold text-[var(--foreground)] mb-3">Catatan & Saran Medis</h3>
-                  <p className="text-[var(--foreground)] leading-relaxed">{selectedDetail.notes}</p>
-                </div>
-              )}
-              
-              {/* Image Preview */}
-              {selectedDetail.image_url && selectedDetail.image_url !== '/placeholder-retina.jpg' && (
-                <div className="bg-[var(--muted)]/5 rounded-lg p-4">
-                  <h3 className="font-semibold text-[var(--foreground)] mb-3">Gambar Retina</h3>
-                  <div className="flex justify-center">
-                    <Image 
-                      src={selectedDetail.image_url} 
-                      alt="Scan Retina" 
-                      width={400}
-                      height={300}
-                      className="max-w-full max-h-64 object-contain rounded-lg border border-[var(--muted)]/20"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-[var(--muted)]/20">
-              <button 
-                onClick={closeDetailModal}
-                className="px-4 py-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }
