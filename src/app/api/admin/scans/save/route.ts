@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       confidence,
       analysis_date,
       notes,
-      doctor_suggestion,
       manual_suggestion
     } = body;
 
@@ -51,8 +50,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Use manual suggestion if provided, otherwise use auto suggestion
-    const final_suggestion = manual_suggestion?.trim() || auto_suggestion;
+    // Manual suggestion will be used if provided, auto_suggestion is generated for database
 
     // Insert scan result to database
     const { data, error } = await supabase
