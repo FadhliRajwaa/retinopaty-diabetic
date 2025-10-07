@@ -67,19 +67,11 @@ export async function GET() {
     const scansToday = await (async () => {
       try {
         const from = startOfTodayISO();
-        // try scans
-        const scans = await supabase
-          .from("scans")
-          .select("id", { count: "exact", head: true })
-          .gte("analysis_date", from);
-        if (!scans.error) return scans.count || 0;
-        // fallback scan_results
-        const scanResults = await supabase
+        const { count } = await supabase
           .from("scan_results")
           .select("id", { count: "exact", head: true })
           .gte("created_at", from);
-        if (!scanResults.error) return scanResults.count || 0;
-        return 0;
+        return count || 0;
       } catch {
         return 0;
       }
@@ -89,19 +81,12 @@ export async function GET() {
       try {
         const from = isoMonthsBack(1); // ~30 hari kebelakang
         // asumsi high risk = prediction == 'DR'
-        const scans = await supabase
-          .from("scans")
-          .select("id", { count: "exact", head: true })
-          .eq("prediction", "DR")
-          .gte("analysis_date", from);
-        if (!scans.error) return scans.count || 0;
-        const scanResults = await supabase
+        const { count } = await supabase
           .from("scan_results")
           .select("id", { count: "exact", head: true })
           .eq("prediction", "DR")
           .gte("created_at", from);
-        if (!scanResults.error) return scanResults.count || 0;
-        return 0;
+        return count || 0;
       } catch {
         return 0;
       }
@@ -113,19 +98,6 @@ export async function GET() {
     const diagnosisStats: DiagnosisStats = await (async () => {
       const from = isoMonthsBack(1);
       let DR = 0; let NO_DR = 0;
-      try {
-        const { data, error } = await supabase
-          .from("scans")
-          .select("prediction, analysis_date")
-          .gte("analysis_date", from)
-          .limit(2000);
-        if (!error && data) {
-          for (const r of data as Array<{ prediction?: string }>) {
-            if (r.prediction === "DR") DR++; else NO_DR++;
-          }
-          return { DR, NO_DR };
-        }
-      } catch {}
       try {
         const { data, error } = await supabase
           .from("scan_results")
@@ -201,38 +173,19 @@ export async function GET() {
           }
         }
       } catch {}
-      try {
-        const { data } = await supabase
-          .from("scans")
-          .select("id, analysis_date, prediction, confidence")
-          .order("analysis_date", { ascending: false })
-          .limit(10);
-        if (data) {
-          for (const r of data as Array<{ id: string; analysis_date?: string; prediction?: string; confidence?: number }>) {
-            items.push({
-              id: `scan-${r.id}`,
-              title: "Hasil Scan Diterima",
-              description: `Prediksi: ${r.prediction ?? '-'} | Conf: ${r.confidence ?? '-'}%`,
-              time: r.analysis_date ? new Date(r.analysis_date).toLocaleString('id-ID') : '-',
-              type: r.prediction === 'DR' ? 'warning' : 'info',
-              source: "scan",
-              created_at: r.analysis_date || new Date().toISOString(),
-            });
-          }
-        }
-      } catch {}
+      // Get scan results from scan_results table
       try {
         const { data } = await supabase
           .from("scan_results")
-          .select("id, created_at, prediction, confidence")
+          .select("id, created_at, prediction, confidence, patient_name")
           .order("created_at", { ascending: false })
           .limit(10);
         if (data) {
-          for (const r of data as Array<{ id: string; created_at: string; prediction?: string; confidence?: number }>) {
+          for (const r of data as Array<{ id: string; created_at: string; prediction?: string; confidence?: number; patient_name?: string }>) {
             items.push({
-              id: `scanres-${r.id}`,
+              id: `scan-${r.id}`,
               title: "Hasil Scan Diterima",
-              description: `Prediksi: ${r.prediction ?? '-'} | Conf: ${r.confidence ?? '-'}%`,
+              description: `Pasien: ${r.patient_name || 'N/A'} | Prediksi: ${r.prediction ?? '-'} | Conf: ${r.confidence ?? '-'}%`,
               time: new Date(r.created_at).toLocaleString('id-ID'),
               type: r.prediction === 'DR' ? 'warning' : 'info',
               source: "scan",
@@ -241,23 +194,29 @@ export async function GET() {
           }
         }
       } catch {}
+      // This section is now redundant since we already handle scan_results above
+      // Generate report activities from recent scans with suggestions
       try {
         const { data } = await supabase
-          .from("reports")
-          .select("id, title, summary, created_at")
+          .from("scan_results")
+          .select("id, created_at, doctor_suggestion, manual_suggestion, patient_name")
+          .not("doctor_suggestion", "is", null)
           .order("created_at", { ascending: false })
-          .limit(10);
+          .limit(5);
         if (data) {
-          for (const r of data as Array<{ id: string; title?: string; summary?: string; created_at: string }>) {
-            items.push({
-              id: `report-${r.id}`,
-              title: r.title || 'Laporan Dibuat',
-              description: r.summary || 'Laporan kesehatan tersedia',
-              time: new Date(r.created_at).toLocaleString('id-ID'),
-              type: 'info',
-              source: 'report',
-              created_at: r.created_at,
-            });
+          for (const r of data as Array<{ id: string; created_at: string; doctor_suggestion?: string; manual_suggestion?: string; patient_name?: string }>) {
+            const suggestion = r.manual_suggestion || r.doctor_suggestion;
+            if (suggestion) {
+              items.push({
+                id: `report-${r.id}`,
+                title: 'Saran Medis Diberikan',
+                description: `Pasien: ${r.patient_name || 'N/A'} - ${suggestion.substring(0, 50)}...`,
+                time: new Date(r.created_at).toLocaleString('id-ID'),
+                type: 'info',
+                source: 'report',
+                created_at: r.created_at,
+              });
+            }
           }
         }
       } catch {}

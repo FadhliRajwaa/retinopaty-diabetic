@@ -19,46 +19,32 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Get user profile to get the correct ID
-    const { data: userProfile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError || !userProfile) {
-      return NextResponse.json({ error: "User profile not found" }, { status: 404 });
-    }
-
     // Load latest scan from scans or scan_results as fallback
     const safeSingle = async <T>(cb: () => Promise<{ data: T | null; error: unknown }>): Promise<T | null> => {
       try { const { data, error } = await cb(); if (error) return null; return data; } catch { return null; }
     };
 
-    // Get latest scan from scan_results (FIXED to use patient_id)
-    const latestScan = await safeSingle<NonNullable<LatestScan>>(async () =>
-      supabase.from("scan_results")
-        .select(`
-          id,
-          patient_id,
-          patient_name,
-          image_url,
-          prediction,
-          confidence,
-          analysis_date,
-          notes,
-          doctor_suggestion,
-          manual_suggestion,
-          created_at
-        `)
-        .eq("patient_id", userProfile.id)  // FIXED: Use user_profiles.id
+    let latestScan = await safeSingle<NonNullable<LatestScan>>(async () =>
+      supabase.from("scans")
+        .select("id,user_id,image_url,prediction,confidence,analysis_date,notes")
+        .eq("user_id", user.id)
         .order("analysis_date", { ascending: false })
         .limit(1)
         .maybeSingle()
     );
-    
-    if (latestScan && latestScan.created_at && !latestScan.analysis_date) {
-      latestScan.analysis_date = latestScan.created_at;
+
+    if (!latestScan) {
+      latestScan = await safeSingle<NonNullable<LatestScan>>(async () =>
+        supabase.from("scan_results")
+          .select("id,user_id,image_url,prediction,confidence,created_at,notes")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      );
+      if (latestScan && latestScan.created_at && !latestScan.analysis_date) {
+        latestScan.analysis_date = latestScan.created_at;
+      }
     }
 
     if (!latestScan) {
