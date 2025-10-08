@@ -297,13 +297,21 @@ export default function PatientsPage() {
                 Manajemen data pasien dan persetujuan akun
               </p>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors text-sm font-medium"
-            >
-              <UserPlus className="w-4 h-4" />
-              Tambah Pasien
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => showSuccess('Test Toast Berhasil!', 'Sistem notifikasi bekerja dengan baik. Ini adalah contoh toast success.')}
+                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+              >
+                Test Toast
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors text-sm font-medium"
+              >
+                <UserPlus className="w-4 h-4" />
+                Tambah Pasien
+              </button>
+            </div>
           </div>
         </div>
 

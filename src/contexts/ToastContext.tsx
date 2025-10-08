@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import Toast, { ToastType } from '@/components/ui/Toast';
+import ToastPortal from '@/components/ui/ToastPortal';
 
 interface ToastItem {
   id: string;
@@ -47,7 +48,12 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
       duration: duration || 5000
     };
 
-    setToasts(prev => [...prev, newToast]);
+    console.log('🍞 Toast added:', newToast);
+    setToasts(prev => {
+      const updated = [...prev, newToast];
+      console.log('🍞 Total toasts:', updated.length);
+      return updated;
+    });
   }, []);
 
   const showSuccess = useCallback((title: string, message?: string) => {
@@ -83,7 +89,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
       {children}
       
       {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2 pointer-events-none">
+      <ToastPortal>
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => (
             <Toast
@@ -97,7 +103,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
             />
           ))}
         </AnimatePresence>
-      </div>
+      </ToastPortal>
     </ToastContext.Provider>
   );
 };
