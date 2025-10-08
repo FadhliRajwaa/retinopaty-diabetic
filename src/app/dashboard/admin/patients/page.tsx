@@ -297,12 +297,24 @@ export default function PatientsPage() {
                 Manajemen data pasien dan persetujuan akun
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
-                onClick={() => showSuccess('Test Toast Berhasil!', 'Sistem notifikasi bekerja dengan baik. Ini adalah contoh toast success.')}
+                onClick={() => showSuccess('✅ Success Toast!', 'Toast sukses berhasil ditampilkan!')}
                 className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
               >
-                Test Toast
+                Success
+              </button>
+              <button
+                onClick={() => showError('❌ Error Toast!', 'Toast error berhasil ditampilkan!')}
+                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+              >
+                Error
+              </button>
+              <button
+                onClick={() => showWarning('⚠️ Warning Toast!', 'Toast warning berhasil ditampilkan!')}
+                className="px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
+              >
+                Warning
               </button>
               <button
                 onClick={() => setShowCreateModal(true)}

@@ -18,35 +18,35 @@ interface ToastProps {
 const toastConfig = {
   success: {
     icon: CheckCircle,
-    bgColor: 'bg-white dark:bg-gray-800 shadow-lg',
-    borderColor: 'border-green-400 dark:border-green-500',
-    iconColor: 'text-green-600 dark:text-green-400',
-    titleColor: 'text-gray-900 dark:text-gray-100',
-    messageColor: 'text-gray-700 dark:text-gray-300'
+    bgColor: 'bg-green-600 shadow-2xl',
+    borderColor: 'border-green-700',
+    iconColor: 'text-white',
+    titleColor: 'text-white font-bold',
+    messageColor: 'text-green-100'
   },
   error: {
     icon: XCircle,
-    bgColor: 'bg-white dark:bg-gray-800 shadow-lg',
-    borderColor: 'border-red-400 dark:border-red-500',
-    iconColor: 'text-red-600 dark:text-red-400',
-    titleColor: 'text-gray-900 dark:text-gray-100',
-    messageColor: 'text-gray-700 dark:text-gray-300'
+    bgColor: 'bg-red-600 shadow-2xl',
+    borderColor: 'border-red-700',
+    iconColor: 'text-white',
+    titleColor: 'text-white font-bold',
+    messageColor: 'text-red-100'
   },
   warning: {
     icon: AlertCircle,
-    bgColor: 'bg-white dark:bg-gray-800 shadow-lg',
-    borderColor: 'border-yellow-400 dark:border-yellow-500',
-    iconColor: 'text-yellow-600 dark:text-yellow-400',
-    titleColor: 'text-gray-900 dark:text-gray-100',
-    messageColor: 'text-gray-700 dark:text-gray-300'
+    bgColor: 'bg-yellow-500 shadow-2xl',
+    borderColor: 'border-yellow-600',
+    iconColor: 'text-white',
+    titleColor: 'text-white font-bold',
+    messageColor: 'text-yellow-100'
   },
   info: {
     icon: Info,
-    bgColor: 'bg-white dark:bg-gray-800 shadow-lg',
-    borderColor: 'border-blue-400 dark:border-blue-500',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    titleColor: 'text-gray-900 dark:text-gray-100',
-    messageColor: 'text-gray-700 dark:text-gray-300'
+    bgColor: 'bg-blue-600 shadow-2xl',
+    borderColor: 'border-blue-700',
+    iconColor: 'text-white',
+    titleColor: 'text-white font-bold',
+    messageColor: 'text-blue-100'
   }
 };
 
@@ -74,43 +74,40 @@ export default function Toast({ id, type, title, message, duration = 5000, onClo
         duration: 0.3 
       }}
       className={`
-        max-w-sm w-full ${config.bgColor} ${config.borderColor} border-2 rounded-lg shadow-2xl 
-        pointer-events-auto overflow-hidden backdrop-blur-sm ring-4 ring-black/5
+        w-full ${config.bgColor} ${config.borderColor} border-2 rounded-lg 
+        pointer-events-auto overflow-hidden
+        transform-gpu will-change-transform min-h-[80px]
       `}
     >
-      <div className="p-4">
+      <div className="p-5">
         <div className="flex items-start">
           <div className="flex-shrink-0">
-            <Icon className={`h-5 w-5 ${config.iconColor}`} />
+            <Icon className={`h-6 w-6 ${config.iconColor}`} />
           </div>
-          <div className="ml-3 w-0 flex-1">
-            <p className={`text-sm font-medium ${config.titleColor}`}>
+          <div className="ml-4 w-0 flex-1">
+            <p className={`text-base ${config.titleColor}`}>
               {title}
             </p>
             {message && (
-              <p className={`mt-1 text-sm ${config.messageColor}`}>
+              <p className={`mt-2 text-sm ${config.messageColor}`}>
                 {message}
               </p>
             )}
           </div>
           <div className="ml-4 flex-shrink-0 flex">
             <button
-              className={`
-                rounded-md inline-flex ${config.iconColor} hover:opacity-75 
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent
-                transition-opacity duration-200
-              `}
+              className="rounded-md inline-flex text-white hover:opacity-75 focus:outline-none transition-opacity duration-200 p-1"
               onClick={() => onClose(id)}
             >
               <span className="sr-only">Close</span>
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
       </div>
       {/* Progress bar */}
       <motion.div
-        className={`h-1 ${config.bgColor.replace('50', '200').replace('900/20', '700/30')}`}
+        className="h-2 bg-black bg-opacity-20"
         initial={{ width: "100%" }}
         animate={{ width: "0%" }}
         transition={{ duration: duration / 1000, ease: "linear" }}

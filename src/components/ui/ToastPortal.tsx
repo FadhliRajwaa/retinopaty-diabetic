@@ -18,9 +18,16 @@ export default function ToastPortal({ children }: ToastPortalProps) {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed top-4 right-4 z-[9999999] space-y-2 pointer-events-none max-w-sm">
-      {children}
-    </div>,
+    <>
+      {/* Mobile Toast Container */}
+      <div className="fixed top-4 left-4 right-4 sm:hidden z-[999999999] space-y-3 pointer-events-none">
+        {children}
+      </div>
+      {/* Desktop Toast Container */}
+      <div className="hidden sm:block fixed top-6 right-6 z-[999999999] space-y-3 pointer-events-none w-96 max-w-md">
+        {children}
+      </div>
+    </>,
     document.body
   );
 }
