@@ -297,33 +297,13 @@ export default function PatientsPage() {
                 Manajemen data pasien dan persetujuan akun
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => showSuccess('✅ Success Toast!', 'Toast sukses berhasil ditampilkan!')}
-                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-              >
-                Success
-              </button>
-              <button
-                onClick={() => showError('❌ Error Toast!', 'Toast error berhasil ditampilkan!')}
-                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-              >
-                Error
-              </button>
-              <button
-                onClick={() => showWarning('⚠️ Warning Toast!', 'Toast warning berhasil ditampilkan!')}
-                className="px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
-              >
-                Warning
-              </button>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors text-sm font-medium"
-              >
-                <UserPlus className="w-4 h-4" />
-                Tambah Pasien
-              </button>
-            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors text-sm font-medium"
+            >
+              <UserPlus className="w-4 h-4" />
+              Tambah Pasien
+            </button>
           </div>
         </div>
 

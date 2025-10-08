@@ -48,12 +48,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
       duration: duration || 5000
     };
 
-    console.log('🍞 Toast added:', newToast);
-    setToasts(prev => {
-      const updated = [...prev, newToast];
-      console.log('🍞 Total toasts:', updated.length);
-      return updated;
-    });
+    setToasts(prev => [...prev, newToast]);
   }, []);
 
   const showSuccess = useCallback((title: string, message?: string) => {
