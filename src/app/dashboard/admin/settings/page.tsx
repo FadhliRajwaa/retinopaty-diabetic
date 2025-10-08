@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { useToast } from "@/contexts/ToastContext";
 import { 
   User as UserIcon,
   Bell,
@@ -29,6 +30,7 @@ interface NotificationSettings {
 }
 
 export default function SettingsPage() {
+  const { showSuccess, showError } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
@@ -135,10 +137,12 @@ export default function SettingsPage() {
       
       if (error) throw error;
       
+      showSuccess('Profil Berhasil Diperbarui', 'Data profil admin telah berhasil disimpan.');
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (error) {
       console.error('Error updating profile:', error);
+      showError('Gagal Memperbarui Profil', 'Terjadi kesalahan saat menyimpan data profil.');
     } finally {
       setProfileLoading(false);
     }
@@ -152,6 +156,7 @@ export default function SettingsPage() {
     localStorage.setItem('admin_notification_settings', JSON.stringify(notifications));
     
     setTimeout(() => {
+      showSuccess('Pengaturan Notifikasi Tersimpan', 'Preferensi notifikasi berhasil diperbarui.');
       setNotificationSuccess(true);
       setNotificationLoading(false);
       setTimeout(() => setNotificationSuccess(false), 3000);
@@ -187,10 +192,13 @@ export default function SettingsPage() {
       if (error) throw error;
       
       setPasswords({ current: '', new: '', confirm: '' });
+      showSuccess('Password Berhasil Diubah', 'Password admin telah berhasil diperbarui.');
       setSecuritySuccess(true);
       setTimeout(() => setSecuritySuccess(false), 3000);
     } catch (error: unknown) {
-      setSecurityError(error instanceof Error ? error.message : 'Gagal mengubah password');
+      const errorMessage = error instanceof Error ? error.message : 'Gagal mengubah password';
+      setSecurityError(errorMessage);
+      showError('Gagal Mengubah Password', errorMessage);
     } finally {
       setSecurityLoading(false);
     }

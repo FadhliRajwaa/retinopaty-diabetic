@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { useToast } from "@/contexts/ToastContext";
 import { 
   Users,
   UserPlus,
@@ -39,6 +40,7 @@ interface Patient {
 }
 
 export default function PatientsPage() {
+  const { showSuccess, showError, showWarning } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -106,7 +108,7 @@ export default function PatientsPage() {
   const handleCreate = async () => {
     try {
       if (!formData.email || !formData.password) {
-        alert('Email dan password wajib diisi');
+        showWarning('Data Tidak Lengkap', 'Email dan password wajib diisi untuk membuat akun pasien.');
         return;
       }
       setCreateLoading(true);
@@ -129,10 +131,10 @@ export default function PatientsPage() {
       await loadPatients();
       setShowCreateModal(false);
       resetForm();
-      alert('Pasien berhasil ditambahkan!');
+      showSuccess('Pasien Berhasil Ditambahkan!', `Akun pasien ${formData.full_name || formData.email} telah berhasil dibuat.`);
     } catch (error) {
       console.error('Error creating patient:', error);
-      alert('Gagal menambahkan pasien!');
+      showError('Gagal Menambahkan Pasien', 'Terjadi kesalahan saat membuat akun pasien. Silakan coba lagi.');
     } finally {
       setCreateLoading(false);
     }
@@ -163,10 +165,10 @@ export default function PatientsPage() {
       setShowEditModal(false);
       setSelectedPatient(null);
       resetForm();
-      alert('Data pasien berhasil diperbarui!');
+      showSuccess('Data Pasien Diperbarui!', `Informasi ${selectedPatient?.full_name || 'pasien'} telah berhasil diperbarui.`);
     } catch (error) {
       console.error('Error updating patient:', error);
-      alert('Gagal memperbarui data pasien!');
+      showError('Gagal Update Pasien', 'Tidak dapat memperbarui data pasien. Silakan coba lagi.');
     } finally {
       setUpdateLoading(false);
     }
@@ -186,10 +188,10 @@ export default function PatientsPage() {
       await loadPatients();
       setShowDeleteModal(false);
       setSelectedPatient(null);
-      alert('Pasien berhasil dihapus!');
+      showSuccess('Pasien Berhasil Dihapus', `Data ${selectedPatient?.full_name || 'pasien'} telah dihapus dari sistem.`);
     } catch (error) {
       console.error('Error deleting patient:', error);
-      alert('Gagal menghapus pasien!');
+      showError('Gagal Menghapus Pasien', 'Tidak dapat menghapus data pasien. Silakan coba lagi.');
     } finally {
       setDeleteLoading(false);
     }

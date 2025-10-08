@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ThemeTransition } from "@/components/theme/ThemeTransition";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
 import RouteProgress from "@/components/ui/RouteProgress";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,12 +32,14 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
-          <ThemeTransition>
-            <RouteProgress />
-            {/* Conditional Navbar - hides for admin routes */}
-            <ConditionalNavbar />
-            <main className="min-h-[calc(100dvh-4rem)]">{children}</main>
-          </ThemeTransition>
+          <ToastProvider>
+            <ThemeTransition>
+              <RouteProgress />
+              {/* Conditional Navbar - hides for admin routes */}
+              <ConditionalNavbar />
+              <main className="min-h-[calc(100dvh-4rem)]">{children}</main>
+            </ThemeTransition>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

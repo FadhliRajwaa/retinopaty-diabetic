@@ -5,6 +5,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { useToast } from "@/contexts/ToastContext";
 import { 
   ScanLine,
   Upload,
@@ -53,6 +54,7 @@ interface RecentScan {
 }
 
 export default function ScansPage() {
+  const { showSuccess, showError } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
@@ -198,7 +200,7 @@ export default function ScansPage() {
       setCurrentStep(3);
     } catch (err) {
       console.error('AI analysis failed:', err);
-      alert('Gagal menganalisis gambar. Coba lagi.');
+      showError('Gagal Menganalisis Gambar', 'Terjadi kesalahan saat menganalisis gambar retina. Silakan coba lagi.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -234,7 +236,7 @@ export default function ScansPage() {
         throw new Error(result.error || 'Gagal menyimpan hasil scan');
       }
       
-      alert('Hasil scan berhasil disimpan!');
+      showSuccess('Scan Berhasil Disimpan!', `Hasil analisis untuk pasien ${analysisResult.patient_name} telah berhasil disimpan ke sistem.`);
       // Refresh recent scans
       const res2 = await fetch("/api/admin/scans/history?limit=5");
       const result2 = await res2.json();
@@ -244,7 +246,8 @@ export default function ScansPage() {
       resetScan();
     } catch (error) {
       console.error('Error saving scan:', error);
-      alert(`Gagal menyimpan hasil scan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showError('Gagal Menyimpan Scan', `Tidak dapat menyimpan hasil scan: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
