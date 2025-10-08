@@ -8,14 +8,52 @@ import {
   User as UserIcon,
   Bell,
   Shield,
-  Database,
   Save,
-  RefreshCw
+  Check,
+  AlertCircle,
+  Eye,
+  EyeOff
 } from "lucide-react";
+
+interface UserProfile {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
+interface NotificationSettings {
+  new_patient: boolean;
+  scan_complete: boolean;
+  high_risk_detected: boolean;
+  daily_report: boolean;
+}
 
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('profile');
+  
+  // Profile states
+  const [profileData, setProfileData] = useState<UserProfile>({ id: '', full_name: '', email: '' });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  
+  // Notification states
+  const [notifications, setNotifications] = useState<NotificationSettings>({
+    new_patient: true,
+    scan_complete: true,
+    high_risk_detected: true,
+    daily_report: false
+  });
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationSuccess, setNotificationSuccess] = useState(false);
+  
+  // Security states
+  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securitySuccess, setSecuritySuccess] = useState(false);
+  const [securityError, setSecurityError] = useState('');
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
   useEffect(() => {
     const checkUser = async () => {
@@ -34,11 +72,129 @@ export default function SettingsPage() {
       }
 
       setUser(user);
+      await loadProfileData(user);
+      loadNotificationSettings();
       setLoading(false);
     };
 
     checkUser();
   }, []);
+
+  const loadProfileData = async (currentUser: User) => {
+    try {
+      const supabase = createClient();
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email')
+        .eq('user_id', currentUser.id)
+        .single();
+      
+      if (profile) {
+        setProfileData({
+          id: profile.id,
+          full_name: profile.full_name || 'Administrator',
+          email: profile.email || currentUser.email || ''
+        });
+      } else {
+        setProfileData({
+          id: '',
+          full_name: 'Administrator', 
+          email: currentUser.email || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
+
+  const loadNotificationSettings = () => {
+    // Load from localStorage or default values
+    const saved = localStorage.getItem('admin_notification_settings');
+    if (saved) {
+      setNotifications(JSON.parse(saved));
+    }
+  };
+
+  const updateProfile = async () => {
+    if (!user) return;
+    
+    setProfileLoading(true);
+    setProfileSuccess(false);
+    
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: user.id,
+          full_name: profileData.full_name,
+          email: profileData.email,
+          role: 'admin',
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const updateNotifications = () => {
+    setNotificationLoading(true);
+    setNotificationSuccess(false);
+    
+    // Save to localStorage
+    localStorage.setItem('admin_notification_settings', JSON.stringify(notifications));
+    
+    setTimeout(() => {
+      setNotificationSuccess(true);
+      setNotificationLoading(false);
+      setTimeout(() => setNotificationSuccess(false), 3000);
+    }, 500);
+  };
+
+  const updatePassword = async () => {
+    if (!user) return;
+    
+    setSecurityLoading(true);
+    setSecurityError('');
+    setSecuritySuccess(false);
+    
+    // Validate passwords
+    if (passwords.new !== passwords.confirm) {
+      setSecurityError('Password baru dan konfirmasi tidak cocok');
+      setSecurityLoading(false);
+      return;
+    }
+    
+    if (passwords.new.length < 6) {
+      setSecurityError('Password minimal 6 karakter');
+      setSecurityLoading(false);
+      return;
+    }
+    
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({
+        password: passwords.new
+      });
+      
+      if (error) throw error;
+      
+      setPasswords({ current: '', new: '', confirm: '' });
+      setSecuritySuccess(true);
+      setTimeout(() => setSecuritySuccess(false), 3000);
+    } catch (error: any) {
+      setSecurityError(error.message || 'Gagal mengubah password');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -74,167 +230,315 @@ export default function SettingsPage() {
             <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-4">
               <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Kategori</h3>
               <nav className="space-y-2">
-                <a href="#profile" className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--accent)] text-white">
+                <button 
+                  onClick={() => setActiveTab('profile')}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full text-left ${
+                    activeTab === 'profile' 
+                      ? 'bg-[var(--accent)] text-white' 
+                      : 'text-[var(--muted)] hover:bg-[var(--muted)]/10'
+                  }`}
+                >
                   <UserIcon className="w-4 h-4" />
                   Profil Admin
-                </a>
-                <a href="#notifications" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--muted)] hover:bg-[var(--muted)]/10 transition-colors">
+                </button>
+                <button 
+                  onClick={() => setActiveTab('notifications')}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full text-left ${
+                    activeTab === 'notifications' 
+                      ? 'bg-[var(--accent)] text-white' 
+                      : 'text-[var(--muted)] hover:bg-[var(--muted)]/10'
+                  }`}
+                >
                   <Bell className="w-4 h-4" />
                   Notifikasi
-                </a>
-                <a href="#security" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--muted)] hover:bg-[var(--muted)]/10 transition-colors">
+                </button>
+                <button 
+                  onClick={() => setActiveTab('security')}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full text-left ${
+                    activeTab === 'security' 
+                      ? 'bg-[var(--accent)] text-white' 
+                      : 'text-[var(--muted)] hover:bg-[var(--muted)]/10'
+                  }`}
+                >
                   <Shield className="w-4 h-4" />
                   Keamanan
-                </a>
-                <a href="#system" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--muted)] hover:bg-[var(--muted)]/10 transition-colors">
-                  <Database className="w-4 h-4" />
-                  Sistem
-                </a>
+                </button>
               </nav>
             </div>
           </div>
 
           {/* Settings Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2">
             {/* Profile Settings */}
-            <div id="profile" className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <UserIcon className="w-6 h-6 text-[var(--accent)]" />
-                <h3 className="text-xl font-semibold text-[var(--foreground)]">Profil Admin</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                      Nama Lengkap
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue="Administrator"
-                      className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      defaultValue={user.email}
-                      disabled
-                      className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--muted)]/5 text-[var(--muted)] cursor-not-allowed"
-                    />
-                  </div>
+            {activeTab === 'profile' && (
+              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <UserIcon className="w-6 h-6 text-[var(--accent)]" />
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">Profil Admin</h3>
                 </div>
                 
-                <button className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors">
-                  <Save className="w-4 h-4" />
-                  Simpan Perubahan
-                </button>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                        Nama Lengkap
+                      </label>
+                      <input
+                        type="text"
+                        value={profileData.full_name}
+                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                        className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                        placeholder="Masukkan nama lengkap"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={profileData.email}
+                        disabled
+                        className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--muted)]/5 text-[var(--muted)] cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={updateProfile}
+                      disabled={profileLoading}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
+                    >
+                      {profileLoading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      {profileLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </button>
+                    
+                    {profileSuccess && (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <Check className="w-4 h-4" />
+                        <span className="text-sm">Profil berhasil diperbarui!</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
+            
             {/* Notification Settings */}
-            <div id="notifications" className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <Bell className="w-6 h-6 text-[var(--accent)]" />
-                <h3 className="text-xl font-semibold text-[var(--foreground)]">Notifikasi</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-[var(--foreground)]">Pasien Baru Mendaftar</p>
-                    <p className="text-sm text-[var(--muted)]">Notifikasi saat ada pendaftaran pasien baru</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[var(--muted)]/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--accent)]/25 rounded-full peer dark:bg-[var(--muted)]/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--muted)]/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:after:bg-[var(--surface)] dark:border-[var(--muted)]/30 peer-checked:bg-[var(--accent)]"></div>
-                  </label>
+            {activeTab === 'notifications' && (
+              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <Bell className="w-6 h-6 text-[var(--accent)]" />
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">Pengaturan Notifikasi</h3>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-[var(--foreground)]">Scan Retina Selesai</p>
-                    <p className="text-sm text-[var(--muted)]">Notifikasi saat hasil scan AI tersedia</p>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between py-3 border-b border-[var(--muted)]/20">
+                    <div>
+                      <p className="font-medium text-[var(--foreground)]">Pasien Baru Mendaftar</p>
+                      <p className="text-sm text-[var(--muted)]">Notifikasi saat ada pendaftaran pasien baru</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={notifications.new_patient}
+                        onChange={(e) => setNotifications({...notifications, new_patient: e.target.checked})}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-[var(--muted)]/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--accent)]/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--muted)]/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]"></div>
+                    </label>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[var(--muted)]/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--accent)]/25 rounded-full peer dark:bg-[var(--muted)]/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--muted)]/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:after:bg-[var(--surface)] dark:border-[var(--muted)]/30 peer-checked:bg-[var(--accent)]"></div>
-                  </label>
+                  
+                  <div className="flex items-center justify-between py-3 border-b border-[var(--muted)]/20">
+                    <div>
+                      <p className="font-medium text-[var(--foreground)]">Scan Retina Selesai</p>
+                      <p className="text-sm text-[var(--muted)]">Notifikasi saat hasil scan AI tersedia</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={notifications.scan_complete}
+                        onChange={(e) => setNotifications({...notifications, scan_complete: e.target.checked})}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-[var(--muted)]/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--accent)]/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--muted)]/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-3 border-b border-[var(--muted)]/20">
+                    <div>
+                      <p className="font-medium text-[var(--foreground)]">Risiko Tinggi Terdeteksi</p>
+                      <p className="text-sm text-[var(--muted)]">Notifikasi khusus saat AI mendeteksi diabetic retinopathy</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={notifications.high_risk_detected}
+                        onChange={(e) => setNotifications({...notifications, high_risk_detected: e.target.checked})}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-[var(--muted)]/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--accent)]/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--muted)]/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="font-medium text-[var(--foreground)]">Laporan Harian</p>
+                      <p className="text-sm text-[var(--muted)]">Ringkasan aktivitas harian dikirim setiap akhir hari</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={notifications.daily_report}
+                        onChange={(e) => setNotifications({...notifications, daily_report: e.target.checked})}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-[var(--muted)]/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--accent)]/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--muted)]/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 pt-4">
+                    <button 
+                      onClick={updateNotifications}
+                      disabled={notificationLoading}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
+                    >
+                      {notificationLoading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      {notificationLoading ? 'Menyimpan...' : 'Simpan Pengaturan'}
+                    </button>
+                    
+                    {notificationSuccess && (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <Check className="w-4 h-4" />
+                        <span className="text-sm">Pengaturan notifikasi berhasil disimpan!</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
+            
             {/* Security Settings */}
-            <div id="security" className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <Shield className="w-6 h-6 text-[var(--accent)]" />
-                <h3 className="text-xl font-semibold text-[var(--foreground)]">Keamanan</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                    Ubah Password
-                  </label>
-                  <div className="space-y-3">
-                    <input
-                      type="password"
-                      placeholder="Password lama"
-                      className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Password baru"
-                      className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Konfirmasi password baru"
-                      className="w-full px-3 py-2 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
-                    />
-                  </div>
-                  <button className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors">
-                    <Save className="w-4 h-4" />
-                    Update Password
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* System Settings */}
-            <div id="system" className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <Database className="w-6 h-6 text-[var(--accent)]" />
-                <h3 className="text-xl font-semibold text-[var(--foreground)]">Sistem</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-[var(--muted)]/5 rounded-lg">
-                  <div>
-                    <p className="font-medium text-[var(--foreground)]">Cache Database</p>
-                    <p className="text-sm text-[var(--muted)]">Bersihkan cache untuk performa optimal</p>
-                  </div>
-                  <button className="inline-flex items-center gap-2 px-3 py-1 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors">
-                    <RefreshCw className="w-4 h-4" />
-                    Clear Cache
-                  </button>
+            {activeTab === 'security' && (
+              <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <Shield className="w-6 h-6 text-[var(--accent)]" />
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">Keamanan Account</h3>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-[var(--muted)]/5 rounded-lg">
+                <div className="space-y-6">
                   <div>
-                    <p className="font-medium text-[var(--foreground)]">Backup Database</p>
-                    <p className="text-sm text-[var(--muted)]">Backup data secara manual</p>
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-4">
+                      Ubah Password
+                    </label>
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <input
+                          type={showPasswords.current ? 'text' : 'password'}
+                          placeholder="Password lama"
+                          value={passwords.current}
+                          onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                          className="w-full px-3 py-2 pr-10 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords({...showPasswords, current: !showPasswords.current})}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                        >
+                          {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      
+                      <div className="relative">
+                        <input
+                          type={showPasswords.new ? 'text' : 'password'}
+                          placeholder="Password baru (minimal 6 karakter)"
+                          value={passwords.new}
+                          onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                          className="w-full px-3 py-2 pr-10 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                        >
+                          {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      
+                      <div className="relative">
+                        <input
+                          type={showPasswords.confirm ? 'text' : 'password'}
+                          placeholder="Konfirmasi password baru"
+                          value={passwords.confirm}
+                          onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                          className="w-full px-3 py-2 pr-10 border border-[var(--muted)]/30 rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                        >
+                          {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {securityError && (
+                      <div className="mt-3 flex items-center gap-2 text-red-600">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm">{securityError}</span>
+                      </div>
+                    )}
+                    
+                    <div className="mt-4 flex items-center gap-3">
+                      <button 
+                        onClick={updatePassword}
+                        disabled={securityLoading || !passwords.new || !passwords.confirm}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:brightness-110 transition-colors disabled:opacity-50"
+                      >
+                        {securityLoading ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Shield className="w-4 h-4" />
+                        )}
+                        {securityLoading ? 'Memperbarui...' : 'Update Password'}
+                      </button>
+                      
+                      {securitySuccess && (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Check className="w-4 h-4" />
+                          <span className="text-sm">Password berhasil diubah!</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <button className="inline-flex items-center gap-2 px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                    <Database className="w-4 h-4" />
-                    Backup Now
-                  </button>
+                  
+                  {/* Password Requirements */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">Persyaratan Password:</h4>
+                    <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
+                      <li>• Minimal 6 karakter</li>
+                      <li>• Kombinasi huruf dan angka disarankan</li>
+                      <li>• Hindari menggunakan password yang mudah ditebak</li>
+                      <li>• Jangan gunakan informasi pribadi</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
           </div>
         </div>
       </div>
