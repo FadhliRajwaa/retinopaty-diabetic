@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -9,16 +9,33 @@ import Image from "next/image";
 import { 
   ArrowLeft,
   Calendar,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   CheckCircle,
   Activity,
   FileImage,
+  Clock,
+  TrendingUp,
+  TrendingDown,
   Brain,
-  Zap,
-  Target
+  Zap
 } from "lucide-react";
+
+interface ApiScanResult {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  patient_info?: { email?: string; full_name?: string };
+  user_profiles?: { email?: string; full_name?: string };
+  image_url?: string;
+  prediction: string;
+  confidence: string | number;
+  analysis_date?: string;
+  created_at: string;
+  notes?: string;
+  doctor_suggestion?: string;
+  manual_suggestion?: string;
+  created_by?: string;
+}
 
 interface ScanResult {
   id: string;
@@ -55,67 +72,53 @@ export default function PatientDetailPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [patientDetail, setPatientDetail] = useState<PatientDetail | null>(null);
-  useEffect(() => {
-    const loadPatientDetail = async () => {
-      try {
-        const response = await fetch(`/api/admin/scans/history?patient_id=${patientId}&limit=100`);
-        const result = await response.json();
+
+  const loadPatientDetail = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/admin/scans/history?patient_id=${patientId}&limit=100`);
+      const result = await response.json();
+      
+      if (result.ok && result.data && result.data.length > 0) {
+        const scans: ScanResult[] = result.data.map((scan: ApiScanResult) => ({
+          id: scan.id,
+          patient_id: scan.patient_id,
+          patient_name: scan.patient_name,
+          patient_email: scan.patient_info?.email || scan.user_profiles?.email || 'N/A',
+          image_url: scan.image_url || '/placeholder-retina.jpg',
+          prediction: scan.prediction as 'DR' | 'NO_DR',
+          confidence: typeof scan.confidence === 'string' ? parseFloat(scan.confidence) : Number(scan.confidence || 0),
+          analysis_date: scan.analysis_date || scan.created_at,
+          notes: scan.notes || scan.doctor_suggestion || scan.manual_suggestion,
+          created_by: scan.created_by || 'admin',
+          created_at: scan.created_at,
+          doctor_suggestion: scan.doctor_suggestion,
+          manual_suggestion: scan.manual_suggestion
+        }));
+
+        const sortedScans = scans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const drCount = scans.filter(scan => scan.prediction === 'DR').length;
         
-        if (result.ok && result.data && result.data.length > 0) {
-          const scans: ScanResult[] = result.data.map((scan: {
-            id: string;
-            patient_id: string;
-            patient_name: string;
-            patient_info?: { email?: string };
-            user_profiles?: { email?: string };
-            image_url?: string;
-            prediction: string;
-            confidence: string | number;
-            analysis_date?: string;
-            created_at: string;
-            notes?: string;
-            doctor_suggestion?: string;
-            manual_suggestion?: string;
-            created_by?: string;
-          }) => ({
-            id: scan.id,
-            patient_id: scan.patient_id,
-            patient_name: scan.patient_name,
-            patient_email: scan.patient_info?.email || scan.user_profiles?.email || 'N/A',
-            image_url: scan.image_url || '/placeholder-retina.jpg',
-            prediction: scan.prediction as 'DR' | 'NO_DR',
-            confidence: typeof scan.confidence === 'string' ? parseFloat(scan.confidence) : Number(scan.confidence || 0),
-            analysis_date: scan.analysis_date || scan.created_at,
-            notes: scan.notes || scan.doctor_suggestion || scan.manual_suggestion,
-            created_by: scan.created_by || 'admin',
-            created_at: scan.created_at,
-            doctor_suggestion: scan.doctor_suggestion,
-            manual_suggestion: scan.manual_suggestion
-          }));
-
-          const sortedScans = scans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          const drCount = scans.filter(scan => scan.prediction === 'DR').length;
-          
-          setPatientDetail({
-            patient_id: patientId,
-            patient_name: sortedScans[0].patient_name,
-            patient_email: sortedScans[0].patient_email,
-            total_scans: scans.length,
-            dr_detected_count: drCount,
-            latest_scan_date: sortedScans[0].created_at,
-            first_scan_date: sortedScans[sortedScans.length - 1].created_at,
-            scans: sortedScans
-          });
-          
-          console.log('[DEBUG] Loaded patient detail:', sortedScans.length, 'scans for', sortedScans[0].patient_name);
-        } else {
-          console.error('No scans found for patient:', patientId);
-        }
-      } catch (error) {
-        console.error('Error loading patient detail:', error);
+        setPatientDetail({
+          patient_id: patientId,
+          patient_name: sortedScans[0].patient_name,
+          patient_email: sortedScans[0].patient_email,
+          total_scans: scans.length,
+          dr_detected_count: drCount,
+          latest_scan_date: sortedScans[0].created_at,
+          first_scan_date: sortedScans[sortedScans.length - 1].created_at,
+          scans: sortedScans
+        });
+        
+        console.log('[DEBUG] Loaded patient detail:', sortedScans.length, 'scans for', sortedScans[0].patient_name);
+      } else {
+        console.error('No scans found for patient:', patientId);
       }
-    };
+    } catch (error) {
+      console.error('Error loading patient detail:', error);
+    }
+  }, [patientId]);
 
+  useEffect(() => {
     const checkUser = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -137,21 +140,8 @@ export default function PatientDetailPage() {
     };
 
     checkUser();
-  }, [patientId]);
+  }, [patientId, loadPatientDetail]);
 
-  // Calculate progression trends
-  const calculateTrend = () => {
-    if (patientDetail && patientDetail.scans.length >= 2) {
-      const recent = patientDetail.scans.slice(0, Math.ceil(patientDetail.scans.length / 2));
-      const older = patientDetail.scans.slice(Math.ceil(patientDetail.scans.length / 2));
-      
-      const recentDR = recent.filter(s => s.prediction === 'DR').length / recent.length;
-      const olderDR = older.filter(s => s.prediction === 'DR').length / older.length;
-      
-      return recentDR > olderDR ? 'worsening' : recentDR < olderDR ? 'improving' : 'stable';
-    }
-    return 'stable';
-  };
 
   if (loading) {
     return (
@@ -188,9 +178,6 @@ export default function PatientDetailPage() {
   const riskLevel = patientDetail.dr_detected_count > 0 
     ? patientDetail.dr_detected_count / patientDetail.total_scans > 0.5 ? 'high' : 'medium'
     : 'low';
-
-  const trend = calculateTrend();
-  const avgConfidence = patientDetail.scans.reduce((sum, scan) => sum + scan.confidence, 0) / patientDetail.scans.length;
 
   return (
     <AdminLayout>
@@ -244,253 +231,219 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        {/* Advanced Stats Dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Primary Stats */}
-          <div className="bg-gradient-to-br from-[var(--accent)]/5 to-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-[var(--foreground)]">Statistik Scan</h3>
-              <Activity className="w-6 h-6 text-[var(--accent)]" />
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-[var(--muted)]">Total Scan</span>
-                <span className="text-xl font-bold text-[var(--foreground)]">{patientDetail.total_scans}</span>
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">Total Scan</p>
+                <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">{patientDetail.total_scans}</p>
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">Riwayat lengkap</p>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-[var(--muted)]">Rata-rata Confidence</span>
-                <span className="text-xl font-bold text-[var(--accent)]">{avgConfidence.toFixed(1)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-[var(--accent)] h-2 rounded-full transition-all duration-500" 
-                  style={{ width: `${avgConfidence}%` }}
-                />
+              <div className="p-3 bg-blue-500/10 rounded-full">
+                <Activity className="w-8 h-8 text-blue-600" />
               </div>
             </div>
           </div>
-
-          {/* Risk Assessment */}
-          <div className={`border rounded-xl p-6 ${
-            riskLevel === 'high' 
-              ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-200 dark:from-red-950/20 dark:to-red-900/20 dark:border-red-800/50'
-              : riskLevel === 'medium'
-              ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 dark:from-yellow-950/20 dark:to-yellow-900/20 dark:border-yellow-800/50'
-              : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200 dark:from-green-950/20 dark:to-green-900/20 dark:border-green-800/50'
-          }`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-[var(--foreground)]">Assessment Risiko</h3>
-              {riskLevel === 'high' && <AlertTriangle className="w-6 h-6 text-red-500" />}
-              {riskLevel === 'medium' && <Activity className="w-6 h-6 text-yellow-500" />}
-              {riskLevel === 'low' && <CheckCircle className="w-6 h-6 text-green-500" />}
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-[var(--muted)]">DR Terdeteksi</span>
-                <span className={`text-2xl font-bold ${
-                  riskLevel === 'high' ? 'text-red-600' : riskLevel === 'medium' ? 'text-yellow-600' : 'text-green-600'
-                }`}>{patientDetail.dr_detected_count}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-[var(--muted)]">Normal</span>
-                <span className="text-xl font-semibold text-green-600">{patientDetail.total_scans - patientDetail.dr_detected_count}</span>
-              </div>
-              <div className="pt-2">
-                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-                  riskLevel === 'high' 
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'
-                    : riskLevel === 'medium'
-                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200'
-                    : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200'
-                }`}>
-                  {riskLevel === 'high' ? '🚨 Risiko Tinggi' : riskLevel === 'medium' ? '⚠️ Risiko Sedang' : '✅ Risiko Rendah'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Trend Analysis */}
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6 dark:from-indigo-950/20 dark:to-purple-950/20 dark:border-indigo-800/50">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-[var(--foreground)]">Analisis Tren</h3>
-              <div className="flex items-center gap-2">
-                {trend === 'improving' && <TrendingDown className="w-5 h-5 text-green-500" />}
-                {trend === 'worsening' && <TrendingUp className="w-5 h-5 text-red-500" />}
-                {trend === 'stable' && <Target className="w-5 h-5 text-blue-500" />}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="text-center">
-                <p className="text-sm text-[var(--muted)] mb-1">Status Tren</p>
-                <p className={`text-lg font-semibold ${
-                  trend === 'improving' ? 'text-green-600' : trend === 'worsening' ? 'text-red-600' : 'text-blue-600'
-                }`}>
-                  {trend === 'improving' ? '📈 Membaik' : trend === 'worsening' ? '📉 Memburuk' : '➡️ Stabil'}
+          
+          <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-800 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-2">DR Terdeteksi</p>
+                <p className="text-3xl font-bold text-red-700 dark:text-red-300">{patientDetail.dr_detected_count}</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                  {patientDetail.total_scans > 0 ? Math.round((patientDetail.dr_detected_count / patientDetail.total_scans) * 100) : 0}% dari total
                 </p>
               </div>
-              <div className="text-center pt-2">
-                <p className="text-xs text-[var(--muted)]">Periode: {new Date(patientDetail.first_scan_date).toLocaleDateString('id-ID')} - {new Date(patientDetail.latest_scan_date).toLocaleDateString('id-ID')}</p>
+              <div className="p-3 bg-red-500/10 rounded-full">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-2">Scan Normal</p>
+                <p className="text-3xl font-bold text-green-700 dark:text-green-300">{patientDetail.total_scans - patientDetail.dr_detected_count}</p>
+                <p className="text-xs text-green-500 dark:text-green-400 mt-1">
+                  {patientDetail.total_scans > 0 ? Math.round(((patientDetail.total_scans - patientDetail.dr_detected_count) / patientDetail.total_scans) * 100) : 0}% dari total
+                </p>
+              </div>
+              <div className="p-3 bg-green-500/10 rounded-full">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border border-purple-200 dark:border-purple-800 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-2">Scan Terakhir</p>
+                <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                  {new Date(patientDetail.latest_scan_date).toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short'
+                  })}
+                </p>
+                <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">
+                  {Math.ceil((new Date().getTime() - new Date(patientDetail.latest_scan_date).getTime()) / (1000 * 60 * 60 * 24))} hari yang lalu
+                </p>
+              </div>
+              <div className="p-3 bg-purple-500/10 rounded-full">
+                <Clock className="w-8 h-8 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Scan History - Visual Gallery Style */}
-        <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--muted)]/20 bg-gradient-to-r from-[var(--accent)]/5 to-transparent">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-[var(--foreground)]">Galeri Riwayat Scan ({patientDetail.scans.length})</h3>
-              <div className="flex items-center gap-2">
-                <Brain className="w-5 h-5 text-[var(--accent)]" />
-                <span className="text-sm text-[var(--muted)]">AI Analysis Timeline</span>
+        {/* Enhanced Scan History with Images */}
+        <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-gradient-to-r from-[var(--accent)]/5 to-[var(--accent)]/10 px-6 py-6 border-b border-[var(--muted)]/20">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[var(--accent)]/10 rounded-lg">
+                <Brain className="w-6 h-6 text-[var(--accent)]" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-[var(--foreground)]">Riwayat Analisis AI</h3>
+                <p className="text-sm text-[var(--muted)]">Kronologi lengkap {patientDetail.scans.length} scan retina dengan hasil AI</p>
               </div>
             </div>
           </div>
           
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {patientDetail.scans.map((scan, index) => (
-                <div key={scan.id} className={`relative rounded-xl border-2 transition-all duration-300 hover:shadow-lg ${
-                  scan.prediction === 'DR' 
-                    ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:border-red-300 dark:from-red-950/20 dark:to-red-900/30 dark:border-red-800/50'
-                    : 'border-green-200 bg-gradient-to-br from-green-50 to-green-100/50 hover:border-green-300 dark:from-green-950/20 dark:to-green-900/30 dark:border-green-800/50'
-                }`}>
-                  {/* Scan Number Badge */}
-                  <div className="absolute -top-3 -left-3 z-10">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg ${
-                      scan.prediction === 'DR' ? 'bg-red-500' : 'bg-green-500'
-                    }`}>
-                      #{patientDetail.scans.length - index}
+          <div className="divide-y divide-[var(--muted)]/10">
+            {patientDetail.scans.map((scan, index) => (
+              <div key={scan.id} className="p-6 hover:bg-gradient-to-r hover:from-[var(--muted)]/3 hover:to-transparent transition-all duration-300">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  
+                  {/* Scan Image */}
+                  <div className="flex-shrink-0">
+                    <div className="w-full lg:w-80 h-60 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden border-2 border-[var(--muted)]/20 shadow-md">
+                      {scan.image_url && scan.image_url !== '/placeholder-retina.jpg' ? (
+                        <Image
+                          src={scan.image_url}
+                          alt={`Scan retina #${patientDetail.scans.length - index}`}
+                          width={320}
+                          height={240}
+                          className="w-full h-full object-contain bg-black/5"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center text-[var(--muted)]">
+                            <FileImage className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Gambar tidak tersedia</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="p-6">
-                    {/* Header with Result */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                  {/* Scan Information */}
+                  <div className="flex-1">
+                    {/* Header */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-[var(--accent)]/10 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-[var(--accent)]">#{patientDetail.scans.length - index}</span>
+                          </div>
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold shadow-sm ${
                             scan.prediction === 'DR'
-                              ? 'bg-red-500 text-white shadow-lg'
-                              : 'bg-green-500 text-white shadow-lg'
+                              ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                              : 'bg-gradient-to-r from-green-500 to-green-600 text-white'
                           }`}>
-                            {scan.prediction === 'DR' ? '🔴 DR Detected' : '✅ Normal'}
+                            {scan.prediction === 'DR' ? '🩸 Diabetic Retinopathy' : '✅ Retina Normal'}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(scan.created_at).toLocaleDateString('id-ID', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
                         </div>
                       </div>
                       
-                      {/* AI Confidence Meter */}
-                      <div className="text-right">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Zap className="w-4 h-4 text-[var(--accent)]" />
-                          <span className="text-xs text-[var(--muted)]">AI Confidence</span>
-                        </div>
-                        <div className={`text-2xl font-bold ${
-                          scan.confidence >= 90 ? 'text-green-600' :
-                          scan.confidence >= 70 ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          {scan.confidence}%
-                        </div>
-                        <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
-                          <div 
-                            className={`h-2 rounded-full transition-all duration-500 ${
-                              scan.confidence >= 90 ? 'bg-green-500' :
-                              scan.confidence >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}
-                            style={{ width: `${scan.confidence}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Image Preview */}
-                    {scan.image_url && scan.image_url !== '/placeholder-retina.jpg' && (
-                      <div className="mb-4">
-                        <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                          <Image 
-                            src={scan.image_url} 
-                            alt={`Retina Scan #${patientDetail.scans.length - index}`}
-                            fill
-                            className="object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                          <div className="absolute bottom-2 left-2">
-                            <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded">
-                              Scan #{patientDetail.scans.length - index}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Medical Notes */}
-                    {scan.notes && (
-                      <div className={`p-4 rounded-lg border ${
-                        scan.prediction === 'DR' 
-                          ? 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800/50'
-                          : 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/50'
-                      }`}>
-                        <div className="flex items-start gap-2">
-                          <Target className="w-4 h-4 mt-0.5 text-[var(--accent)]" />
-                          <div>
-                            <p className="text-xs text-[var(--muted)] mb-1">Catatan & Saran Medis</p>
-                            <p className="text-sm text-[var(--foreground)] leading-relaxed">{scan.notes}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Analysis Metadata */}
-                    <div className="mt-4 pt-4 border-t border-[var(--muted)]/20">
-                      <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div>
-                          <span className="text-[var(--muted)]">Scan ID</span>
-                          <p className="font-mono text-[var(--foreground)] truncate">{scan.id.substring(0, 8)}...</p>
-                        </div>
-                        <div>
-                          <span className="text-[var(--muted)]">Analysis Time</span>
-                          <p className="text-[var(--foreground)]">
-                            {new Date(scan.created_at).toLocaleTimeString('id-ID', {
+                      <div className="flex items-center gap-6 text-sm text-[var(--muted)] mb-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span className="font-medium">
+                            {new Date(scan.created_at).toLocaleDateString('id-ID', {
+                              weekday: 'long',
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
-                          </p>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          <span>Scan ID: {scan.id.substring(0, 8)}...</span>
                         </div>
                       </div>
                     </div>
+                    
+                    {/* AI Confidence */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-[var(--foreground)]">AI Confidence Score</span>
+                        <span className="text-lg font-bold text-[var(--accent)]">{scan.confidence}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 shadow-inner">
+                        <div 
+                          className={`h-3 rounded-full transition-all duration-500 ${
+                            scan.confidence >= 90 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                            scan.confidence >= 70 ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+                            'bg-gradient-to-r from-red-400 to-red-600'
+                          }`}
+                          style={{ width: `${scan.confidence}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-[var(--muted)] mt-1">
+                        <span>0%</span>
+                        <span className="font-medium">
+                          {scan.confidence >= 90 ? 'Sangat Akurat' :
+                           scan.confidence >= 70 ? 'Akurat' : 'Perlu Verifikasi'}
+                        </span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                    
+                    {/* Medical Notes */}
+                    {scan.notes && (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <div className="flex items-start gap-2">
+                          <div className="p-1 bg-blue-500/10 rounded">
+                            <Brain className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">Saran Medis AI</h4>
+                            <p className="text-sm text-blue-600 dark:text-blue-400 leading-relaxed">{scan.notes}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Trend Indicator */}
+                    {index < patientDetail.scans.length - 1 && (
+                      <div className="mt-4 pt-4 border-t border-[var(--muted)]/10">
+                        <div className="flex items-center gap-2 text-xs">
+                          {scan.confidence > patientDetail.scans[index + 1].confidence ? (
+                            <>
+                              <TrendingUp className="w-3 h-3 text-green-600" />
+                              <span className="text-green-600 font-medium">Peningkatan akurasi +{(scan.confidence - patientDetail.scans[index + 1].confidence).toFixed(1)}%</span>
+                            </>
+                          ) : scan.confidence < patientDetail.scans[index + 1].confidence ? (
+                            <>
+                              <TrendingDown className="w-3 h-3 text-red-600" />
+                              <span className="text-red-600 font-medium">Penurunan akurasi -{(patientDetail.scans[index + 1].confidence - scan.confidence).toFixed(1)}%</span>
+                            </>
+                          ) : (
+                            <span className="text-[var(--muted)]">Akurasi stabil</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Summary Footer */}
-            <div className="mt-8 p-4 bg-gradient-to-r from-[var(--accent)]/5 to-transparent rounded-lg border border-[var(--accent)]/20">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-[var(--muted)]">{patientDetail.dr_detected_count} DR Detected</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-[var(--muted)]">{patientDetail.total_scans - patientDetail.dr_detected_count} Normal</span>
-                  </div>
-                </div>
-                <div className="text-[var(--muted)]">
-                  Periode: {new Date(patientDetail.first_scan_date).toLocaleDateString('id-ID')} - {new Date(patientDetail.latest_scan_date).toLocaleDateString('id-ID')}
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
