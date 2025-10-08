@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import StatCard from "@/components/dashboard/StatCard";
+import AnimatedPage from "@/components/shared/AnimatedPage";
 import ChartCard from "@/components/dashboard/ChartCard";
 import QuickActionCard from "@/components/dashboard/QuickActionCard";
 import RecentActivityCard from "@/components/dashboard/RecentActivityCard";
@@ -117,7 +118,7 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <AnimatedPage className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -298,7 +299,7 @@ export default function AdminDashboard() {
           </ChartCard>
         </div>
         {/* Jadwal & Appointment dihapus sesuai requirement */}
-      </div>
+      </AnimatedPage>
     </AdminLayout>
   );
 }

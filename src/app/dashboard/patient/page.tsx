@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { motion } from "framer-motion";
 import StatCard from "@/components/dashboard/StatCard";
 import ChartCard from "@/components/dashboard/ChartCard";
 // QuickActionCard removed: patient dashboard is information-only
@@ -98,8 +99,18 @@ export default function PatientDashboard() {
   // Riwayat akan berasal dari `reports` (data nyata)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--background)] via-[var(--background)] to-[var(--surface)] animate-fade-in">
-      <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-[var(--background)] via-[var(--background)] to-[var(--surface)]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
+      <motion.div 
+        className="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8"
+        initial={{ y: 20 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
         {/* Header */}
         <div className="mb-8" id="home" aria-label="home" >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -269,7 +280,7 @@ export default function PatientDashboard() {
           </ChartCard>
         </div>
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
