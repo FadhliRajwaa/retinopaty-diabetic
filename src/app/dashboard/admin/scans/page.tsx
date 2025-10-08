@@ -788,7 +788,7 @@ export default function ScansPage() {
                 <div className="text-center pt-4">
                   <button 
                     className="text-[var(--accent)] hover:text-[var(--accent)]/80 font-medium text-sm"
-                    onClick={() => window.location.href = '/dashboard/admin/history'}
+                    onClick={() => window.location.href = '/dashboard/admin/reports'}
                   >
                     Lihat Semua Riwayat →
                   </button>
