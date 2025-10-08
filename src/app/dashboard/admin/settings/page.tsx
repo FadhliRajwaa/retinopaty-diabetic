@@ -189,8 +189,8 @@ export default function SettingsPage() {
       setPasswords({ current: '', new: '', confirm: '' });
       setSecuritySuccess(true);
       setTimeout(() => setSecuritySuccess(false), 3000);
-    } catch (error: any) {
-      setSecurityError(error.message || 'Gagal mengubah password');
+    } catch (error: unknown) {
+      setSecurityError(error instanceof Error ? error.message : 'Gagal mengubah password');
     } finally {
       setSecurityLoading(false);
     }
