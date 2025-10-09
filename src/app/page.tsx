@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { InteractiveCard } from "@/components/ui/InteractiveCard";
 import { FloatingParticles } from "@/components/ui/FloatingParticles";
-import { InteractiveDiagnosisSection } from "@/components/sections/InteractiveDiagnosisSection";
 import { 
   Eye, 
   Shield, 
@@ -25,7 +24,7 @@ import {
   Award
 } from "lucide-react";
 
-// Dynamic import for Spline to avoid SSR issues
+// Dynamic import components for better performance
 const Spline = dynamic(() => import('@splinetool/react-spline'), {
   ssr: false,
   loading: () => (
@@ -34,6 +33,14 @@ const Spline = dynamic(() => import('@splinetool/react-spline'), {
     </div>
   )
 });
+
+// Lazy load heavy sections
+const FeaturesSection = dynamic(() => Promise.resolve(FeaturesSectionComponent), { ssr: false });
+const HowItWorksSection = dynamic(() => Promise.resolve(HowItWorksSectionComponent), { ssr: false });
+const StatsSection = dynamic(() => Promise.resolve(StatsSectionComponent), { ssr: false });
+const TestimonialsSection = dynamic(() => Promise.resolve(TestimonialsSectionComponent), { ssr: false });
+const CTASection = dynamic(() => Promise.resolve(CTASectionComponent), { ssr: false });
+const InteractiveDiagnosisSection = dynamic(() => import('@/components/sections/InteractiveDiagnosisSection').then((mod) => ({ default: mod.InteractiveDiagnosisSection })), { ssr: false });
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -55,17 +62,18 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Memoized auth logic
+  const initializeAuth = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user ?? null);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     const supabase = createClient();
-
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
-
-    getInitialSession();
+    
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -73,15 +81,23 @@ export default function Home() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [initializeAuth]);
 
-  const role = (user?.user_metadata as { role?: string } | null)?.role;
-  const dashboardHref = role === "admin" ? "/dashboard/admin" : "/dashboard/patient";
+  // Memoized computed values
+  const role = useMemo(() => 
+    (user?.user_metadata as { role?: string } | null)?.role, 
+    [user?.user_metadata]
+  );
+  
+  const dashboardHref = useMemo(() => 
+    role === "admin" ? "/dashboard/admin" : "/dashboard/patient", 
+    [role]
+  );
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Floating Particles Background */}
-      <FloatingParticles count={15} />
+      {/* Floating Particles Background - Reduced count for performance */}
+      <FloatingParticles count={8} />
       
       {/* Hero Section */}
       <section className="relative pt-8 pb-16 lg:pt-16 lg:pb-24 overflow-hidden">
@@ -189,18 +205,15 @@ export default function Home() {
                     />
                   </div>
                   
-                  {/* Floating elements with enhanced animations */}
+                  {/* Simplified floating elements */}
                   <motion.div
                     animate={{ 
-                      y: [-15, 15, -15],
-                      rotate: [0, 5, 0, -5, 0],
-                      scale: [1, 1.1, 1]
+                      y: [-10, 10, -10],
                     }}
                     transition={{ 
-                      duration: 4, 
+                      duration: 3, 
                       repeat: Infinity, 
-                      ease: "easeInOut",
-                      times: [0, 0.5, 1]
+                      ease: "easeInOut"
                     }}
                     className="absolute top-6 right-6 p-3 rounded-xl bg-gradient-to-br from-[#00ADB5]/30 to-[#00ADB5]/10 backdrop-blur-md border border-[#00ADB5]/20 shadow-lg"
                   >
@@ -209,52 +222,18 @@ export default function Home() {
                   
                   <motion.div
                     animate={{ 
-                      y: [15, -15, 15],
-                      rotate: [0, -5, 0, 5, 0],
-                      scale: [1, 1.05, 1]
+                      y: [10, -10, 10],
                     }}
                     transition={{ 
-                      duration: 5, 
+                      duration: 4, 
                       repeat: Infinity, 
                       ease: "easeInOut", 
-                      delay: 1.5,
-                      times: [0, 0.5, 1]
+                      delay: 1
                     }}
                     className="absolute bottom-6 left-6 p-3 rounded-xl bg-gradient-to-br from-[#393E46]/30 to-[#393E46]/10 backdrop-blur-md border border-[#393E46]/20 shadow-lg"
                   >
                     <Shield className="w-6 h-6 text-[#393E46] drop-shadow-sm" />
                   </motion.div>
-
-                  {/* Additional floating particle effects */}
-                  <motion.div
-                    animate={{ 
-                      x: [-20, 20, -20],
-                      y: [-10, 10, -10],
-                      opacity: [0.3, 0.8, 0.3]
-                    }}
-                    transition={{ 
-                      duration: 6, 
-                      repeat: Infinity, 
-                      ease: "easeInOut",
-                      delay: 2
-                    }}
-                    className="absolute top-1/2 left-4 w-2 h-2 bg-[#00ADB5] rounded-full blur-sm"
-                  />
-                  
-                  <motion.div
-                    animate={{ 
-                      x: [20, -20, 20],
-                      y: [10, -10, 10],
-                      opacity: [0.5, 1, 0.5]
-                    }}
-                    transition={{ 
-                      duration: 7, 
-                      repeat: Infinity, 
-                      ease: "easeInOut",
-                      delay: 3
-                    }}
-                    className="absolute bottom-1/3 right-8 w-1 h-1 bg-[#393E46] rounded-full blur-sm"
-                  />
                 </div>
               </div>
             </motion.div>
@@ -271,7 +250,7 @@ export default function Home() {
       {/* Stats Section */}
       <StatsSection />
 
-      {/* Interactive Diagnosis Section */}
+      {/* Interactive Diagnosis Section - Lazy Loaded */}
       <InteractiveDiagnosisSection />
 
       {/* Testimonials Section */}
@@ -298,9 +277,9 @@ export default function Home() {
   );
 }
 
-function FeaturesSection() {
+function FeaturesSectionComponent() {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: false, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   const features = [
     {
@@ -372,9 +351,9 @@ function FeaturesSection() {
   );
 }
 
-function HowItWorksSection() {
+function HowItWorksSectionComponent() {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: false, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   const steps = [
     { icon: Upload, title: "Upload Gambar", desc: "Tim medis mengupload hasil scan retina pasien ke sistem" },
@@ -430,9 +409,9 @@ function HowItWorksSection() {
   );
 }
 
-function StatsSection() {
+function StatsSectionComponent() {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: false, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   const stats = [
     { value: "10,000+", label: "Diagnosa Selesai", icon: CheckCircle },
@@ -469,9 +448,9 @@ function StatsSection() {
   );
 }
 
-function TestimonialsSection() {
+function TestimonialsSectionComponent() {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: false, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   const testimonials = [
     {
@@ -544,34 +523,41 @@ function TestimonialsSection() {
   );
 }
 
-function CTASection() {
+function CTASectionComponent() {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: false, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  
+  // Use auth state from parent to avoid duplication
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const initializeAuth = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user ?? null);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     const supabase = createClient();
+    initializeAuth();
 
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [initializeAuth]);
 
-  const role = (user?.user_metadata as { role?: string } | null)?.role;
-  const dashboardHref = role === "admin" ? "/dashboard/admin" : "/dashboard/patient";
+  const role = useMemo(() => 
+    (user?.user_metadata as { role?: string } | null)?.role, 
+    [user?.user_metadata]
+  );
+  
+  const dashboardHref = useMemo(() => 
+    role === "admin" ? "/dashboard/admin" : "/dashboard/patient", 
+    [role]
+  );
 
   return (
     <section ref={ref} className="py-12 sm:py-16 lg:py-24 bg-gradient-to-br from-[#00ADB5]/10 via-[#00ADB5]/5 to-transparent">
