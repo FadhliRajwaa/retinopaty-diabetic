@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
       patient_name,
       image_url,
       prediction,
+      class_id,
       confidence,
+      description,
+      severity_level,
+      all_probabilities,
       analysis_date,
       notes,
       manual_suggestion
@@ -49,29 +53,39 @@ export async function POST(req: NextRequest) {
       role: userProfile.role
     });
 
-    // Generate automatic doctor suggestion based on prediction and confidence
+    // Generate automatic doctor suggestion based on 5-class prediction
     let auto_suggestion = "";
-    if (prediction === "DR") {
-      if (confidence >= 90) {
-        auto_suggestion = "Rujuk segera ke dokter mata spesialis retina. Kemungkinan besar terdapat diabetic retinopathy yang memerlukan penanganan segera.";
-      } else if (confidence >= 70) {
-        auto_suggestion = "Disarankan untuk konsultasi ke dokter mata. Hasil menunjukkan kemungkinan diabetic retinopathy.";
-      } else {
-        auto_suggestion = "Perlu pemeriksaan lebih lanjut. Hasil tidak conclusive, sebaiknya konsultasi dengan dokter mata.";
-      }
-    } else { // NO_DR
-      if (confidence >= 90) {
-        auto_suggestion = "Kondisi retina terlihat normal. Tetap jaga kontrol gula darah dan pemeriksaan rutin setiap 6-12 bulan.";
-      } else if (confidence >= 70) {
-        auto_suggestion = "Kemungkinan besar kondisi retina normal, namun tetap disarankan kontrol rutin setiap 6 bulan.";
-      } else {
-        auto_suggestion = "Hasil tidak conclusive. Disarankan pemeriksaan ulang atau konsultasi dengan dokter mata.";
-      }
+    const classId = class_id || 0;
+    
+    switch (classId) {
+      case 0: // No DR
+        if (confidence >= 90) {
+          auto_suggestion = "Kondisi retina terlihat normal. Tetap jaga kontrol gula darah dan pemeriksaan rutin setiap 6-12 bulan.";
+        } else if (confidence >= 70) {
+          auto_suggestion = "Kemungkinan besar kondisi retina normal, namun tetap disarankan kontrol rutin setiap 6 bulan.";
+        } else {
+          auto_suggestion = "Hasil tidak conclusive. Disarankan pemeriksaan ulang atau konsultasi dengan dokter mata.";
+        }
+        break;
+      case 1: // Mild DR
+        auto_suggestion = "Terdeteksi diabetic retinopathy ringan. Diperlukan kontrol gula darah yang ketat dan pemeriksaan mata rutin setiap 6 bulan.";
+        break;
+      case 2: // Moderate DR
+        auto_suggestion = "Terdeteksi diabetic retinopathy sedang. Segera konsultasi ke dokter mata dan perbaiki kontrol gula darah. Pemeriksaan ulang dalam 3-4 bulan.";
+        break;
+      case 3: // Severe DR
+        auto_suggestion = "Terdeteksi diabetic retinopathy berat. RUJUK SEGERA ke dokter mata spesialis retina. Diperlukan penanganan intensif.";
+        break;
+      case 4: // Proliferative DR
+        auto_suggestion = "Terdeteksi diabetic retinopathy proliferatif. DARURAT MATA - Rujuk segera ke rumah sakit dengan fasilitas vitreoretinal. Risiko kebutaan tinggi.";
+        break;
+      default:
+        auto_suggestion = "Hasil tidak dapat diinterpretasi. Silakan ulangi pemeriksaan atau konsultasi langsung dengan dokter mata.";
     }
 
     // Manual suggestion will be used if provided, auto_suggestion is generated for database
 
-    // Insert scan result to database
+    // Insert scan result to database with 5-class data
     const { data, error } = await supabase
       .from('scan_results')
       .insert({
@@ -79,7 +93,11 @@ export async function POST(req: NextRequest) {
         patient_name,
         image_url,
         prediction,
+        class_id: classId,
         confidence: Math.round(confidence * 100) / 100, // round to 2 decimal places
+        description: description || null,
+        severity_level: severity_level || null,
+        all_probabilities: all_probabilities ? JSON.stringify(all_probabilities) : null,
         analysis_date: analysis_date || new Date().toISOString(),
         notes: notes || null,
         doctor_suggestion: auto_suggestion, // Auto-generated suggestion

@@ -20,7 +20,17 @@ import {
 } from "lucide-react";
 // ThemeToggle now handled in sidebar for patient dashboard
 
-type LatestScan = { id?: string; image_url?: string; analysis_date?: string; prediction?: string; confidence?: number; notes?: string };
+type LatestScan = { 
+  id?: string; 
+  image_url?: string; 
+  analysis_date?: string; 
+  prediction?: string; 
+  class_id?: number;
+  confidence?: number; 
+  description?: string;
+  severity_level?: string;
+  notes?: string 
+};
 type ReportItem = { id: string; title?: string; summary?: string; created_at?: string };
 
 export default function PatientDashboard() {
@@ -194,9 +204,34 @@ export default function PatientDashboard() {
                       <p className="text-sm text-[var(--muted)]">Tanggal Pemeriksaan</p>
                       <p className="text-lg font-semibold text-[var(--foreground)] mt-1">{lastScanDate}</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-green-500/5 to-transparent border border-green-500/10">
-                      <p className="text-sm text-[var(--muted)]">Status</p>
-                      <p className="text-lg font-semibold text-green-500 mt-1">{latest.prediction || '-'}</p>
+                    <div className={`p-4 rounded-xl border ${
+                      (latest.class_id === 0 || latest.prediction === 'No DR') 
+                        ? 'bg-gradient-to-br from-green-500/5 to-transparent border-green-500/10'
+                        : latest.class_id === 1
+                        ? 'bg-gradient-to-br from-yellow-500/5 to-transparent border-yellow-500/10'
+                        : latest.class_id === 2
+                        ? 'bg-gradient-to-br from-orange-500/5 to-transparent border-orange-500/10'
+                        : (latest.class_id && latest.class_id >= 3) || latest.prediction === 'DR'
+                        ? 'bg-gradient-to-br from-red-500/5 to-transparent border-red-500/10'
+                        : 'bg-gradient-to-br from-gray-500/5 to-transparent border-gray-500/10'
+                    }`}>
+                      <p className="text-sm text-[var(--muted)]">Status Diagnosa</p>
+                      <p className={`text-lg font-semibold mt-1 ${
+                        (latest.class_id === 0 || latest.prediction === 'No DR') ? 'text-green-500' :
+                        latest.class_id === 1 ? 'text-yellow-500' :
+                        latest.class_id === 2 ? 'text-orange-500' :
+                        (latest.class_id && latest.class_id >= 3) || latest.prediction === 'DR' ? 'text-red-500' :
+                        'text-gray-500'
+                      }`}>
+                        {latest.prediction || '-'}
+                      </p>
+                      {latest.description && (
+                        <p className="text-xs text-[var(--muted)] mt-1">{latest.description}</p>
+                      )}
+                    </div>
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/5 to-transparent border border-blue-500/10">
+                      <p className="text-sm text-[var(--muted)]">Tingkat Keparahan</p>
+                      <p className="text-lg font-semibold text-blue-500 mt-1">{latest.severity_level || 'Tidak tersedia'}</p>
                     </div>
                     <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/5 to-transparent border border-blue-500/10">
                       <p className="text-sm text-[var(--muted)]">Health Score</p>

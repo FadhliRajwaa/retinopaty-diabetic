@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs"; // ensure Node runtime for external fetch
 
-// Configure your Space URL and optional token
-const DEFAULT_SPACE_URL = "https://FadhliRajwaa-RetinaAI.hf.space";
+// Configure your Space URL for 5-class DenseNet201 model
+const DEFAULT_SPACE_URL = "https://FadhliRajwaa-DiabeticRetinopathy.hf.space";
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,24 +51,42 @@ export async function POST(req: NextRequest) {
     
     const out = await res.json();
     
-    // FastAPI response format: { ok: true, result: { predicted_class, confidence, probabilities, ... } }
-    if (!out.ok) {
+    // New FastAPI response format for 5-class model: { success: true, prediction: { ... }, all_probabilities: { ... }, metadata: { ... } }
+    if (!out.success) {
       return NextResponse.json(
         { ok: false, error: out.error || 'FastAPI returned error' },
         { status: 500 }
       );
     }
     
-    const result = out.result;
+    const prediction = out.prediction;
+    const allProbabilities = out.all_probabilities;
+    const metadata = out.metadata;
     
+    // Map 5-class results to frontend format
     return NextResponse.json({ 
       ok: true, 
       result: {
-        predicted_class: result.predicted_class,
-        confidence: result.confidence,
-        probabilities: result.probabilities,
-        raw_sigmoid: result.raw_sigmoid,
-        processing_time_ms: result.processing_time_ms
+        // Main prediction
+        predicted_class: prediction.class_name,
+        class_id: prediction.class_id,
+        confidence: prediction.confidence,
+        description: prediction.description,
+        severity_level: prediction.severity_level,
+        
+        // All class probabilities
+        probabilities: allProbabilities,
+        
+        // Model metadata
+        model_info: {
+          name: metadata.model,
+          version: metadata.version,
+          total_classes: metadata.total_classes,
+          filename: metadata.filename
+        },
+        
+        // Legacy compatibility (for existing frontend)
+        raw_sigmoid: Object.values(allProbabilities)
       } 
     });
   } catch (e: unknown) {

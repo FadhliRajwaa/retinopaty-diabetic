@@ -35,12 +35,15 @@ interface Patient {
 }
 
 interface ScanResult {
-  id?: string;
   patient_id: string;
   patient_name: string;
   image_url: string;
-  prediction: 'DR' | 'NO_DR';
+  prediction: 'No DR' | 'Mild DR' | 'Moderate DR' | 'Severe DR' | 'Proliferative DR';
+  class_id: number;
   confidence: number;
+  description: string;
+  severity_level: string;
+  all_probabilities: Record<string, number>;
   analysis_date: string;
   notes?: string;
 }
@@ -49,7 +52,8 @@ interface RecentScan {
   id: string;
   created_at: string;
   patient_name: string;
-  prediction: 'DR' | 'NO_DR';
+  prediction: string;
+  class_id?: number;
   confidence: number;
 }
 
@@ -160,39 +164,54 @@ export default function ScansPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error || 'Gagal menganalisis gambar');
 
       const raw = data.result || {};
-      const pred = String(raw.predicted_class || '').toUpperCase();
-      const prediction: 'DR' | 'NO_DR' = pred === 'DR' ? 'DR' : 'NO_DR';
+      const prediction = raw.predicted_class || 'No DR';
+      const class_id = raw.class_id || 0;
       const confRaw = typeof raw.confidence === 'number' ? raw.confidence : 0;
       const confidence = Math.round(confRaw * 100) / 100; // tampil 2 desimal
+      const description = raw.description || '';
+      const severity_level = raw.severity_level || '';
+      const all_probabilities = raw.probabilities || {};
 
       const result: ScanResult = {
         patient_id: selectedPatient.id,
         patient_name: selectedPatient.full_name || selectedPatient.email,
         image_url: imagePreview || '',
-        prediction,
+        prediction: prediction as 'No DR' | 'Mild DR' | 'Moderate DR' | 'Severe DR' | 'Proliferative DR',
+        class_id,
         confidence,
+        description,
+        severity_level,
+        all_probabilities,
         analysis_date: new Date().toISOString(),
         notes: undefined,
       };
 
-      // Generate automatic doctor suggestion
+      // Generate automatic doctor suggestion based on 5-class system
       let suggestion = "";
-      if (prediction === "DR") {
-        if (confidence >= 90) {
-          suggestion = "Rujuk segera ke dokter mata spesialis retina. Kemungkinan besar terdapat diabetic retinopathy yang memerlukan penanganan segera.";
-        } else if (confidence >= 70) {
-          suggestion = "Disarankan untuk konsultasi ke dokter mata. Hasil menunjukkan kemungkinan diabetic retinopathy.";
-        } else {
-          suggestion = "Perlu pemeriksaan lebih lanjut. Hasil tidak conclusive, sebaiknya konsultasi dengan dokter mata.";
-        }
-      } else { // NO_DR
-        if (confidence >= 90) {
-          suggestion = "Kondisi retina terlihat normal. Tetap jaga kontrol gula darah dan pemeriksaan rutin setiap 6-12 bulan.";
-        } else if (confidence >= 70) {
-          suggestion = "Kemungkinan besar kondisi retina normal, namun tetap disarankan kontrol rutin setiap 6 bulan.";
-        } else {
-          suggestion = "Hasil tidak conclusive. Disarankan pemeriksaan ulang atau konsultasi dengan dokter mata.";
-        }
+      switch (class_id) {
+        case 0: // No DR
+          if (confidence >= 90) {
+            suggestion = "Kondisi retina terlihat normal. Tetap jaga kontrol gula darah dan pemeriksaan rutin setiap 6-12 bulan.";
+          } else if (confidence >= 70) {
+            suggestion = "Kemungkinan besar kondisi retina normal, namun tetap disarankan kontrol rutin setiap 6 bulan.";
+          } else {
+            suggestion = "Hasil tidak conclusive. Disarankan pemeriksaan ulang atau konsultasi dengan dokter mata.";
+          }
+          break;
+        case 1: // Mild DR
+          suggestion = "Terdeteksi diabetic retinopathy ringan. Diperlukan kontrol gula darah yang ketat dan pemeriksaan mata rutin setiap 6 bulan.";
+          break;
+        case 2: // Moderate DR
+          suggestion = "Terdeteksi diabetic retinopathy sedang. Segera konsultasi ke dokter mata dan perbaiki kontrol gula darah. Pemeriksaan ulang dalam 3-4 bulan.";
+          break;
+        case 3: // Severe DR
+          suggestion = "Terdeteksi diabetic retinopathy berat. RUJUK SEGERA ke dokter mata spesialis retina. Diperlukan penanganan intensif.";
+          break;
+        case 4: // Proliferative DR
+          suggestion = "Terdeteksi diabetic retinopathy proliferatif. DARURAT MATA - Rujuk segera ke rumah sakit dengan fasilitas vitreoretinal. Risiko kebutaan tinggi.";
+          break;
+        default:
+          suggestion = "Hasil tidak dapat diinterpretasi. Silakan ulangi pemeriksaan atau konsultasi langsung dengan dokter mata.";
       }
       
       setAutoSuggestion(suggestion);
@@ -216,7 +235,11 @@ export default function ScansPage() {
         patient_name: analysisResult.patient_name,
         image_url: analysisResult.image_url,
         prediction: analysisResult.prediction,
+        class_id: analysisResult.class_id,
         confidence: analysisResult.confidence,
+        description: analysisResult.description,
+        severity_level: analysisResult.severity_level,
+        all_probabilities: analysisResult.all_probabilities,
         analysis_date: analysisResult.analysis_date,
         notes: notes.trim() || null,
         manual_suggestion: manualSuggestion.trim() || null
@@ -657,12 +680,33 @@ export default function ScansPage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-[var(--muted)]">Prediksi:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          analysisResult.prediction === 'DR' 
+                        <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                          analysisResult.class_id === 0 
+                            ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                            : analysisResult.class_id === 1
+                            ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20'
+                            : analysisResult.class_id === 2
+                            ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'
+                            : analysisResult.class_id >= 3
                             ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
-                            : 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                            : 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20'
                         }`}>
-                          {analysisResult.prediction === 'DR' ? 'Diabetic Retinopathy' : 'Normal'}
+                          {analysisResult.prediction}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[var(--muted)]">Deskripsi:</span>
+                        <span className="text-[var(--foreground)] text-sm max-w-[200px] text-right">{analysisResult.description}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[var(--muted)]">Tingkat Keparahan:</span>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          analysisResult.severity_level?.includes('Normal') ? 'bg-green-100 text-green-700' :
+                          analysisResult.severity_level?.includes('Moderate') ? 'bg-yellow-100 text-yellow-700' :
+                          analysisResult.severity_level?.includes('Urgent') ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {analysisResult.severity_level}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
@@ -774,11 +818,17 @@ export default function ScansPage() {
                       <div className="flex items-center gap-4 text-sm text-[var(--muted)] mt-1">
                         <span>{new Date(scan.created_at).toLocaleDateString('id-ID')}</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          scan.prediction === 'DR' 
+                          (scan.class_id === 0 || scan.prediction === 'No DR') 
+                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                            : scan.class_id === 1
+                            ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                            : scan.class_id === 2
+                            ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                            : (scan.class_id && scan.class_id >= 3) || scan.prediction === 'DR'
                             ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                            : 'bg-green-500/10 text-green-600 dark:text-green-400'
+                            : 'bg-gray-500/10 text-gray-600 dark:text-gray-400'
                         }`}>
-                          {scan.prediction === 'DR' ? 'DR' : 'Normal'}
+                          {scan.prediction || 'Unknown'}
                         </span>
                         <span>{scan.confidence}% confidence</span>
                       </div>

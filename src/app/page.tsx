@@ -11,7 +11,6 @@ import { FloatingParticles } from "@/components/ui/FloatingParticles";
 import { 
   Eye, 
   Shield, 
-  Zap, 
   Users, 
   CheckCircle, 
   Upload, 
@@ -129,8 +128,8 @@ export default function Home() {
                 variants={itemVariants}
                 className="mt-4 sm:mt-6 text-base sm:text-lg text-foreground/70 leading-relaxed max-w-xl"
               >
-                Platform cerdas untuk deteksi dini Diabetic Retinopathy menggunakan kecerdasan buatan. 
-                Membantu tim medis dan pasien dengan analisis cepat, akurat, dan mudah digunakan.
+                Platform cerdas untuk deteksi dini Diabetic Retinopathy dengan sistem klasifikasi 5-tingkat menggunakan DenseNet201. 
+                Memberikan analisis mendalam dari Normal hingga Proliferative DR untuk tim medis dan pasien.
               </motion.p>
 
               <motion.div
@@ -171,16 +170,16 @@ export default function Home() {
                 className="mt-8 sm:mt-12 grid grid-cols-3 gap-4 sm:gap-6"
               >
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-[#00ADB5]">99.2%</div>
-                  <div className="text-xs sm:text-sm text-foreground/60">Akurasi</div>
+                  <div className="text-xl sm:text-2xl font-bold text-[#00ADB5]">5-Class</div>
+                  <div className="text-xs sm:text-sm text-foreground/60">Classification</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-[#00ADB5]">{"< 2s"}</div>
-                  <div className="text-xs sm:text-sm text-foreground/60">Analisis</div>
+                  <div className="text-xl sm:text-2xl font-bold text-[#00ADB5]">DenseNet201</div>
+                  <div className="text-xs sm:text-sm text-foreground/60">AI Model</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-[#00ADB5]">24/7</div>
-                  <div className="text-xs sm:text-sm text-foreground/60">Available</div>
+                  <div className="text-xl sm:text-2xl font-bold text-[#00ADB5]">97MB</div>
+                  <div className="text-xs sm:text-sm text-foreground/60">Model Size</div>
                 </div>
               </motion.div>
             </motion.div>
@@ -284,23 +283,23 @@ function FeaturesSectionComponent() {
   const features = [
     {
       icon: Eye,
-      title: "Deteksi AI Canggih",
-      desc: "Algoritma deep learning terdepan untuk analisis retina dengan akurasi tinggi"
+      title: "5-Class Detection",
+      desc: "Sistem klasifikasi 5-tingkat: No DR, Mild, Moderate, Severe, dan Proliferative DR"
     },
     {
-      icon: Zap,
-      title: "Hasil Instan",
-      desc: "Dapatkan hasil analisis dalam hitungan detik, tidak perlu menunggu lama"
+      icon: Brain,
+      title: "DenseNet201 Model",
+      desc: "Model deep learning state-of-the-art dengan arsitektur Dense Convolutional Network"
     },
     {
       icon: Shield,
-      title: "Keamanan Terjamin",
-      desc: "Data medis terenkripsi dan tersimpan aman sesuai standar HIPAA"
+      title: "Akurasi Tinggi",
+      desc: "Model terlatih dengan dataset medis untuk memberikan prediksi yang akurat dan reliabel"
     },
     {
       icon: Users,
-      title: "Multi Role Access",
-      desc: "Dashboard terpisah untuk tim medis (Admin) dan pasien dengan fitur khusus"
+      title: "Analisis Mendalam",
+      desc: "Tingkat keparahan, confidence score, dan rekomendasi medis yang komprehensif"
     }
   ];
 
