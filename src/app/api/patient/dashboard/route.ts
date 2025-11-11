@@ -10,6 +10,11 @@ type LatestScan = {
   analysis_date?: string;
   created_at?: string;
   notes?: string;
+  // 5-class fields
+  class_id?: number;
+  description?: string;
+  severity_level?: string;
+  all_probabilities?: string;
 } | null;
 
 type Report = {
@@ -37,10 +42,10 @@ export async function GET() {
       return NextResponse.json({ error: "User profile not found" }, { status: 404 });
     }
 
-    // Latest scan from scan_results table
+    // Latest scan from scan_results table with 5-class fields
     const { data: latestScanData } = await supabase
       .from("scan_results")
-      .select("id,patient_id,image_url,prediction,confidence,analysis_date,created_at,notes")
+      .select("id,patient_id,image_url,prediction,confidence,analysis_date,created_at,notes,class_id,description,severity_level,all_probabilities")
       .eq("patient_id", userProfile.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -54,7 +59,12 @@ export async function GET() {
       confidence: latestScanData.confidence,
       analysis_date: latestScanData.analysis_date || latestScanData.created_at,
       created_at: latestScanData.created_at,
-      notes: latestScanData.notes
+      notes: latestScanData.notes,
+      // 5-class fields
+      class_id: latestScanData.class_id,
+      description: latestScanData.description,
+      severity_level: latestScanData.severity_level,
+      all_probabilities: latestScanData.all_probabilities
     } : null;
 
     // Generate reports from scan_results
@@ -78,12 +88,30 @@ export async function GET() {
     const fmt = (d?: string) => d ? new Date(d).toLocaleString("id-ID") : new Date().toLocaleString("id-ID");
 
     if (latestScan) {
+      const getPredictionType = (classId?: number, prediction?: string) => {
+        if (classId === 0 || prediction === 'No DR') return 'success';
+        if (classId === 1) return 'info';
+        if (classId === 2) return 'warning';
+        if (classId && classId >= 3) return 'error';
+        if (prediction === 'DR') return 'warning';
+        return 'info';
+      };
+      
+      const getDetailedDescription = (scan: LatestScan) => {
+        if (!scan) return "Data tidak tersedia";
+        let desc = `Status: ${scan.prediction || "-"}`;
+        if (scan.severity_level) desc += ` (${scan.severity_level})`;
+        desc += `, Confidence: ${scan.confidence ?? "-"}%`;
+        if (scan.description) desc += ` - ${scan.description}`;
+        return desc;
+      };
+      
       activities.push({
         id: `scan-${latestScan.id || "latest"}`,
-        title: "Hasil Scan Tersedia",
-        description: `Status: ${latestScan.prediction || "-"}, Confidence: ${latestScan.confidence ?? "-"}%`,
+        title: "Hasil Scan Terbaru",
+        description: getDetailedDescription(latestScan),
         time: fmt(latestScan.analysis_date),
-        type: "success",
+        type: getPredictionType(latestScan.class_id, latestScan.prediction),
       });
     }
 

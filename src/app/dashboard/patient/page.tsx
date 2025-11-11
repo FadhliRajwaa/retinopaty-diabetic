@@ -1,24 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { User } from "@supabase/supabase-js";
 import { motion } from "framer-motion";
+import { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
+import { Eye, AlertCircle, Heart, FileText, Activity, TrendingUp, RefreshCw } from "lucide-react";
 import StatCard from "@/components/dashboard/StatCard";
 import ChartCard from "@/components/dashboard/ChartCard";
-// QuickActionCard removed: patient dashboard is information-only
 import RecentActivityCard from "@/components/dashboard/RecentActivityCard";
-import { 
-  Eye, 
-  AlertCircle, 
-  Heart, 
-  FileText, 
-  User as UserIcon,
-  Activity,
-  TrendingUp,
-  
-} from "lucide-react";
-// ThemeToggle now handled in sidebar for patient dashboard
 
 type LatestScan = { 
   id?: string; 
@@ -40,6 +29,24 @@ export default function PatientDashboard() {
   const [latest, setLatest] = useState<LatestScan | null>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [activityItems, setActivityItems] = useState<Array<{ id: string; title: string; description: string; time: string; type: 'info' | 'success' | 'warning' | 'error' }>>([]);
+
+  // Function to load dashboard data
+  const loadDashboardData = async () => {
+    try {
+      setDashLoading(true);
+      const res = await fetch('/api/patient/dashboard', { cache: 'no-store' });
+      const json = await res.json();
+      if (res.ok) {
+        setLatest(json.latestScan || null);
+        setReports(json.reports || []);
+        setActivityItems(json.activities || []);
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard data', err);
+    } finally {
+      setDashLoading(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -65,23 +72,22 @@ export default function PatientDashboard() {
       setUser(user);
       setAuthLoading(false);
 
-      try {
-        setDashLoading(true);
-        const res = await fetch('/api/patient/dashboard', { cache: 'no-store' });
-        const json = await res.json();
-        if (res.ok) {
-          setLatest(json.latestScan || null);
-          setReports(json.reports || []);
-          setActivityItems(json.activities || []);
-        }
-      } catch (err) {
-        console.error('Failed to load dashboard data', err);
-      } finally {
-        setDashLoading(false);
-      }
+      // Load initial data
+      await loadDashboardData();
     };
     load();
   }, []);
+
+  // Auto-refresh every 30 seconds for real-time updates
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [user]);
 
   if (authLoading) {
     return (
@@ -133,10 +139,18 @@ export default function PatientDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 animate-scale-in">
+              <button
+                onClick={loadDashboardData}
+                disabled={dashLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all duration-200 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 text-blue-500 ${dashLoading ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium text-blue-500">Refresh</span>
+              </button>
+              <div className="px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20">
                 <div className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium text-green-500">Pasien</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-sm font-medium text-green-500">Real-time Active</span>
                 </div>
               </div>
             </div>
