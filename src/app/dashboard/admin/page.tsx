@@ -27,7 +27,16 @@ import { useRouter } from "next/navigation";
 
 type AdminApiResponse = {
   stats: { totalPatients: number; scansToday: number; highRiskScans30d: number };
-  diagnosisStats: { DR: number; NO_DR: number };
+  diagnosisStats: { 
+    'No DR': number; 
+    'Mild DR': number; 
+    'Moderate DR': number; 
+    'Severe DR': number; 
+    'Proliferative DR': number;
+    // Legacy support
+    DR?: number; 
+    NO_DR?: number; 
+  };
   monthlyTrend: { month: string; count: number }[];
   activities: { id: string; title: string; description: string; time: string; type: 'info'|'success'|'warning'|'error'; source: 'patient'|'scan'|'report' }[];
   updatedAt: string;
@@ -105,9 +114,21 @@ export default function AdminDashboard() {
   const stats = data?.stats;
   const diag = data?.diagnosisStats;
   const trend = data?.monthlyTrend || [];
-  const totalDiag = (diag?.DR || 0) + (diag?.NO_DR || 0);
-  const drPct = totalDiag ? Math.round(((diag?.DR || 0) / totalDiag) * 100) : 0;
-  const noDrPct = totalDiag ? 100 - drPct : 0;
+  
+  // Calculate 5-class statistics
+  const noDR = diag?.['No DR'] || 0;
+  const mildDR = diag?.['Mild DR'] || 0; 
+  const moderateDR = diag?.['Moderate DR'] || 0;
+  const severeDR = diag?.['Severe DR'] || 0;
+  const proliferativeDR = diag?.['Proliferative DR'] || 0;
+  
+  // Legacy support
+  const legacyDR = diag?.DR || 0;
+  const legacyNoDR = diag?.NO_DR || 0;
+  
+  const totalDiag = noDR + mildDR + moderateDR + severeDR + proliferativeDR + legacyDR + legacyNoDR;
+  const normalPct = totalDiag ? Math.round((noDR + legacyNoDR) / totalDiag * 100) : 0;
+  const drPct = totalDiag ? 100 - normalPct : 0;
   const trendMax = trend.reduce((m, p) => Math.max(m, p.count), 0);
   const pickIcon = (source: 'patient'|'scan'|'report', type: 'info'|'success'|'warning'|'error') => {
     if (source === 'patient') return UserPlus;
@@ -182,7 +203,7 @@ export default function AdminDashboard() {
             <StatCard
               title="Diagnosa 30 Hari"
               value={totalDiag}
-              change={`DR ${drPct}% · Normal ${noDrPct}%`}
+              change={`DR ${drPct}% · Normal ${normalPct}%`}
               changeType="neutral"
               icon={CheckCircle}
               description="Distribusi hasil"
@@ -265,7 +286,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="h-8 w-full rounded-lg overflow-hidden border border-[var(--muted)]/20 flex">
                   <div className="h-full bg-red-500/70" style={{ width: `${drPct}%` }} title={`DR ${drPct}%`} />
-                  <div className="h-full bg-green-500/70" style={{ width: `${noDrPct}%` }} title={`Normal ${noDrPct}%`} />
+                  <div className="h-full bg-green-500/70" style={{ width: `${normalPct}%` }} title={`Normal ${normalPct}%`} />
                 </div>
                 <div className="flex items-center justify-between text-xs text-[var(--muted)]">
                   <span>DR: {diag?.DR ?? 0}</span>

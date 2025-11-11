@@ -16,22 +16,49 @@ interface DiagnosisStage {
 
 const diagnosisStages: DiagnosisStage[] = [
   {
-    id: 1,
-    title: "Normal",
-    description: "Pembuluh darah retina dalam kondisi sehat tanpa tanda-tanda retinopati diabetik",
+    id: 0,
+    title: "No DR",
+    description: "Retina dalam kondisi sehat tanpa tanda-tanda diabetic retinopathy",
     icon: CheckCircle,
-    color: "#00ADB5",
+    color: "#00C851",
     severity: "normal",
     progress: 0
   },
   {
+    id: 1,
+    title: "Mild DR", 
+    description: "Diabetic retinopathy ringan dengan beberapa mikroaneurisma kecil",
+    icon: Brain,
+    color: "#FFD700",
+    severity: "mild",
+    progress: 25
+  },
+  {
     id: 2,
-    title: "DR Terdeteksi", 
-    description: "Terindikasi adanya retinopati diabetik yang memerlukan perhatian medis lebih lanjut",
+    title: "Moderate DR",
+    description: "Diabetic retinopathy sedang dengan perdarahan dan eksudat yang lebih jelas",
+    icon: Microscope,
+    color: "#FF8C00", 
+    severity: "moderate",
+    progress: 50
+  },
+  {
+    id: 3,
+    title: "Severe DR",
+    description: "Diabetic retinopathy berat dengan area iskemia yang signifikan",
     icon: AlertTriangle,
-    color: "#E74C3C",
+    color: "#FF4444",
+    severity: "severe", 
+    progress: 75
+  },
+  {
+    id: 4,
+    title: "Proliferative DR",
+    description: "Diabetic retinopathy proliferatif dengan neovaskularisasi - memerlukan tindakan segera",
+    icon: TrendingUp,
+    color: "#CC0000",
     severity: "severe",
-    progress: 85
+    progress: 100
   }
 ];
 
@@ -216,7 +243,7 @@ export function InteractiveDiagnosisSection() {
         </motion.div>
 
         {/* Draggable Diagnosis Stages */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
           {diagnosisStages.map((stage, index) => (
             <DiagniosisCard
               key={stage.id}
@@ -241,9 +268,9 @@ export function InteractiveDiagnosisSection() {
           className="mt-12 sm:mt-20 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8"
         >
           {[
-            { label: "Akurasi Deteksi", value: "98.7%", icon: TrendingUp },
-            { label: "Waktu Analisis", value: "< 3 detik", icon: Zap },
-            { label: "Tingkat Kepercayaan", value: "95.2%", icon: CheckCircle }
+            { label: "Model Accuracy", value: "97.2%", icon: TrendingUp },
+            { label: "5-Class Detection", value: "DenseNet201", icon: Brain },
+            { label: "Processing Time", value: "< 2s", icon: Zap }
           ].map((metric, i) => (
             <motion.div
               key={metric.label}

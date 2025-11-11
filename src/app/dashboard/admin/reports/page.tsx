@@ -23,8 +23,11 @@ interface ScanResult {
   patient_name: string;
   patient_email: string;
   image_url: string;
-  prediction: 'DR' | 'NO_DR';
+  prediction: string;
+  class_id?: number;
   confidence: number;
+  description?: string;
+  severity_level?: string;
   analysis_date: string;
   notes?: string;
   created_by: string;
@@ -37,7 +40,8 @@ interface PatientSummary {
   patient_email: string;
   scan_count: number;
   latest_scan_date: string;
-  latest_prediction: 'DR' | 'NO_DR';
+  latest_prediction: string;
+  latest_class_id?: number;
   latest_confidence: number;
   has_dr_detected: boolean;
   scans: ScanResult[];
@@ -107,7 +111,12 @@ export default function ReportsPage() {
         const summaries: PatientSummary[] = Object.values(patientGroups).map(scans => {
           const sortedScans = scans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           const latestScan = sortedScans[0];
-          const hasDR = scans.some(scan => scan.prediction === 'DR');
+          // Check if any scan detected DR (class_id > 0 or old DR prediction)
+          const hasDR = scans.some(scan => 
+            (scan.class_id !== undefined && scan.class_id > 0) || 
+            scan.prediction === 'DR' || 
+            (scan.prediction !== 'No DR' && scan.prediction !== 'Normal')
+          );
           
           return {
             patient_id: latestScan.patient_id,
@@ -116,6 +125,7 @@ export default function ReportsPage() {
             scan_count: scans.length,
             latest_scan_date: latestScan.created_at,
             latest_prediction: latestScan.prediction,
+            latest_class_id: latestScan.class_id,
             latest_confidence: latestScan.confidence,
             has_dr_detected: hasDR,
             scans: sortedScans
@@ -406,12 +416,18 @@ export default function ReportsPage() {
                     })}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      patient.latest_prediction === 'DR'
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+                      (patient.latest_class_id === 0 || patient.latest_prediction === 'No DR')
+                        ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
+                        : patient.latest_class_id === 1
+                        ? 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border border-yellow-500/20'
+                        : patient.latest_class_id === 2
+                        ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'
+                        : (patient.latest_class_id && patient.latest_class_id >= 3) || patient.latest_prediction === 'DR'
                         ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
-                        : 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
+                        : 'bg-gray-500/10 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400 border border-gray-500/20'
                     }`}>
-                      {patient.latest_prediction === 'DR' ? 'Diabetic Retinopathy' : 'Normal'}
+                      {patient.latest_prediction || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-[var(--foreground)]">

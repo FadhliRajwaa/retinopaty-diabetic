@@ -9,8 +9,14 @@ type AdminStats = {
 };
 
 type DiagnosisStats = {
-  DR: number;
-  NO_DR: number;
+  'No DR': number;
+  'Mild DR': number;
+  'Moderate DR': number;
+  'Severe DR': number;
+  'Proliferative DR': number;
+  // Legacy support
+  DR?: number;
+  NO_DR?: number;
 };
 
 type MonthlyTrendPoint = {
@@ -80,11 +86,11 @@ export async function GET() {
     const highRiskScans30d = await (async () => {
       try {
         const from = isoMonthsBack(1); // ~30 hari kebelakang
-        // asumsi high risk = prediction == 'DR'
+        // High risk = class_id >= 2 (Moderate, Severe, Proliferative) or legacy DR
         const { count } = await supabase
           .from("scan_results")
           .select("id", { count: "exact", head: true })
-          .eq("prediction", "DR")
+          .or("class_id.gte.2,prediction.eq.DR")
           .gte("created_at", from);
         return count || 0;
       } catch {
@@ -94,23 +100,48 @@ export async function GET() {
 
     const stats: AdminStats = { totalPatients, scansToday, highRiskScans30d };
 
-    // 2) Diagnosis stats (30d)
+    // 2) Diagnosis stats (30d) - 5-class system
     const diagnosisStats: DiagnosisStats = await (async () => {
       const from = isoMonthsBack(1);
-      let DR = 0; let NO_DR = 0;
+      const result: DiagnosisStats = {
+        'No DR': 0,
+        'Mild DR': 0,
+        'Moderate DR': 0,
+        'Severe DR': 0,
+        'Proliferative DR': 0,
+        DR: 0,
+        NO_DR: 0
+      };
+      
       try {
         const { data, error } = await supabase
           .from("scan_results")
-          .select("prediction, created_at")
+          .select("prediction, class_id, created_at")
           .gte("created_at", from)
           .limit(2000);
+        
         if (!error && data) {
-          for (const r of data as Array<{ prediction?: string }>) {
-            if (r.prediction === "DR") DR++; else NO_DR++;
+          for (const r of data as Array<{ prediction?: string; class_id?: number }>) {
+            // Handle 5-class system
+            if (r.class_id !== undefined) {
+              switch (r.class_id) {
+                case 0: result['No DR']++; break;
+                case 1: result['Mild DR']++; break;
+                case 2: result['Moderate DR']++; break;
+                case 3: result['Severe DR']++; break;
+                case 4: result['Proliferative DR']++; break;
+              }
+            } 
+            // Handle legacy system
+            else if (r.prediction === "DR") {
+              result.DR!++;
+            } else {
+              result.NO_DR!++;
+            }
           }
         }
       } catch {}
-      return { DR, NO_DR };
+      return result;
     })();
 
     // 3) Monthly trend patients (last 6 months)
