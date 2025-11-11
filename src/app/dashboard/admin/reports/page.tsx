@@ -221,7 +221,20 @@ export default function ReportsPage() {
   });
 
   const totalScans = scanResults.length;
-  const drDetected = scanResults.filter(r => r.prediction === 'DR').length;
+  
+  // 5-class system statistics
+  const noDRCount = scanResults.filter(r => r.class_id === 0 || r.prediction === 'No DR').length;
+  const mildDRCount = scanResults.filter(r => r.class_id === 1 || r.prediction === 'Mild DR').length;
+  const moderateDRCount = scanResults.filter(r => r.class_id === 2 || r.prediction === 'Moderate DR').length;
+  const severeDRCount = scanResults.filter(r => r.class_id === 3 || r.prediction === 'Severe DR').length;
+  const proliferativeDRCount = scanResults.filter(r => r.class_id === 4 || r.prediction === 'Proliferative DR').length;
+  
+  // Legacy support
+  const legacyDRCount = scanResults.filter(r => r.prediction === 'DR' && !r.class_id).length;
+  
+  // Combined DR detection (any class_id >= 1 or legacy DR)
+  const drDetected = mildDRCount + moderateDRCount + severeDRCount + proliferativeDRCount + legacyDRCount;
+  
   const averageConfidence = scanResults.length > 0 
     ? Math.round(scanResults.reduce((sum, r) => sum + r.confidence, 0) / scanResults.length * 10) / 10
     : 0;
@@ -265,8 +278,66 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Summary Cards - Ultra Compact */}
-        <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3 sm:mb-6 lg:grid-cols-4 lg:gap-4 lg:mb-8">
+        {/* Summary Cards - 5-Class Statistics */}
+        <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3 sm:mb-6 lg:grid-cols-5 lg:gap-3 lg:mb-8">
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">No DR</p>
+                <p className="text-lg sm:text-xl font-bold text-green-500">{noDRCount}</p>
+                <p className="text-xs text-green-500 truncate">Normal</p>
+              </div>
+              <div className="w-2 h-8 bg-green-500 rounded shrink-0"></div>
+            </div>
+          </div>
+          
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">Mild DR</p>
+                <p className="text-lg sm:text-xl font-bold text-yellow-500">{mildDRCount}</p>
+                <p className="text-xs text-yellow-500 truncate">Ringan</p>
+              </div>
+              <div className="w-2 h-8 bg-yellow-500 rounded shrink-0"></div>
+            </div>
+          </div>
+          
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">Moderate DR</p>
+                <p className="text-lg sm:text-xl font-bold text-orange-500">{moderateDRCount}</p>
+                <p className="text-xs text-orange-500 truncate">Sedang</p>
+              </div>
+              <div className="w-2 h-8 bg-orange-500 rounded shrink-0"></div>
+            </div>
+          </div>
+          
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">Severe DR</p>
+                <p className="text-lg sm:text-xl font-bold text-red-500">{severeDRCount}</p>
+                <p className="text-xs text-red-500 truncate">Berat</p>
+              </div>
+              <div className="w-2 h-8 bg-red-500 rounded shrink-0"></div>
+            </div>
+          </div>
+          
+          <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">Proliferative</p>
+                <p className="text-lg sm:text-xl font-bold text-red-700">{proliferativeDRCount}</p>
+                <p className="text-xs text-red-700 truncate">Kritis</p>
+              </div>
+              <div className="w-2 h-8 bg-red-700 rounded shrink-0"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Summary Info Cards */}
+        <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3 sm:mb-6 lg:grid-cols-3 lg:gap-4 lg:mb-8">
           <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
@@ -281,9 +352,9 @@ export default function ReportsPage() {
           <div className="bg-[var(--surface)] border border-[var(--muted)]/20 rounded-lg p-3">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">DR Terdeteksi</p>
+                <p className="text-xs text-[var(--muted)] mb-0.5 truncate">Risk Cases</p>
                 <p className="text-lg sm:text-xl font-bold text-red-500">{drDetected}</p>
-                <p className="text-xs text-red-500 truncate">{totalScans > 0 ? Math.round((drDetected / totalScans) * 100) : 0}%</p>
+                <p className="text-xs text-red-500 truncate">{totalScans > 0 ? Math.round((drDetected / totalScans) * 100) : 0}% dari total</p>
               </div>
               <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 shrink-0" />
             </div>
@@ -419,15 +490,24 @@ export default function ReportsPage() {
                     <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
                       (patient.latest_class_id === 0 || patient.latest_prediction === 'No DR')
                         ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
-                        : patient.latest_class_id === 1
+                        : (patient.latest_class_id === 1 || patient.latest_prediction === 'Mild DR')
                         ? 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border border-yellow-500/20'
-                        : patient.latest_class_id === 2
+                        : (patient.latest_class_id === 2 || patient.latest_prediction === 'Moderate DR')
                         ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'
-                        : (patient.latest_class_id && patient.latest_class_id >= 3) || patient.latest_prediction === 'DR'
+                        : (patient.latest_class_id === 3 || patient.latest_prediction === 'Severe DR')
+                        ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
+                        : (patient.latest_class_id === 4 || patient.latest_prediction === 'Proliferative DR')
+                        ? 'bg-red-700/10 text-red-700 dark:bg-red-700/20 dark:text-red-300 border border-red-700/20'
+                        : patient.latest_prediction === 'DR' // Legacy support
                         ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
                         : 'bg-gray-500/10 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400 border border-gray-500/20'
                     }`}>
-                      {patient.latest_prediction || 'Unknown'}
+                      {patient.latest_class_id === 0 || patient.latest_prediction === 'No DR' ? '✅ No DR' :
+                       patient.latest_class_id === 1 || patient.latest_prediction === 'Mild DR' ? '🟡 Mild DR' :
+                       patient.latest_class_id === 2 || patient.latest_prediction === 'Moderate DR' ? '🟠 Moderate DR' :
+                       patient.latest_class_id === 3 || patient.latest_prediction === 'Severe DR' ? '🔴 Severe DR' :
+                       patient.latest_class_id === 4 || patient.latest_prediction === 'Proliferative DR' ? '🆘 Proliferative DR' :
+                       patient.latest_prediction === 'DR' ? '🔴 DR (Legacy)' : '❓ Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-[var(--foreground)]">
@@ -515,11 +595,26 @@ export default function ReportsPage() {
                 {/* Latest Result */}
                 <div className="mb-3">
                   <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
-                    patient.latest_prediction === 'DR'
+                    (patient.latest_class_id === 0 || patient.latest_prediction === 'No DR')
+                      ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
+                      : (patient.latest_class_id === 1 || patient.latest_prediction === 'Mild DR')
+                      ? 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border border-yellow-500/20'
+                      : (patient.latest_class_id === 2 || patient.latest_prediction === 'Moderate DR')
+                      ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'
+                      : (patient.latest_class_id === 3 || patient.latest_prediction === 'Severe DR')
                       ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
-                      : 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border border-green-500/20'
+                      : (patient.latest_class_id === 4 || patient.latest_prediction === 'Proliferative DR')
+                      ? 'bg-red-700/10 text-red-700 dark:bg-red-700/20 dark:text-red-300 border border-red-700/20'
+                      : patient.latest_prediction === 'DR'
+                      ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-500/20'
+                      : 'bg-gray-500/10 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400 border border-gray-500/20'
                   }`}>
-                    {patient.latest_prediction === 'DR' ? '🔴 DR Terdeteksi (Terbaru)' : '✅ Normal (Terbaru)'}
+                    {patient.latest_class_id === 0 || patient.latest_prediction === 'No DR' ? '✅ No DR' :
+                     patient.latest_class_id === 1 || patient.latest_prediction === 'Mild DR' ? '🟡 Mild DR' :
+                     patient.latest_class_id === 2 || patient.latest_prediction === 'Moderate DR' ? '🟠 Moderate DR' :
+                     patient.latest_class_id === 3 || patient.latest_prediction === 'Severe DR' ? '🔴 Severe DR' :
+                     patient.latest_class_id === 4 || patient.latest_prediction === 'Proliferative DR' ? '🆘 Proliferative DR' :
+                     patient.latest_prediction === 'DR' ? '🔴 DR (Legacy)' : '❓ Unknown'}
                   </span>
                 </div>
 

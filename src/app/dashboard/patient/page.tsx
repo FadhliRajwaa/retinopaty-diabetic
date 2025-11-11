@@ -78,15 +78,44 @@ export default function PatientDashboard() {
     load();
   }, []);
 
-  // Auto-refresh every 30 seconds for real-time updates
+  // Real-time updates using Supabase realtime + auto-refresh backup
   useEffect(() => {
     if (!user) return;
     
+    const supabase = createClient();
+    
+    // Set up Supabase realtime subscription for instant updates
+    const channel = supabase
+      .channel('patient-dashboard')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'scan_results',
+        filter: `patient_id=eq.${user.id}`
+      }, () => {
+        console.log('Real-time update: scan_results changed');
+        loadDashboardData();
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'reports',
+        filter: `patient_id=eq.${user.id}`
+      }, () => {
+        console.log('Real-time update: reports changed'); 
+        loadDashboardData();
+      })
+      .subscribe();
+    
+    // Backup: Auto-refresh every 30 seconds if realtime fails
     const interval = setInterval(() => {
       loadDashboardData();
-    }, 30000); // Refresh every 30 seconds
+    }, 30000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      try { supabase.removeChannel(channel); } catch {}
+    };
   }, [user]);
 
   if (authLoading) {
@@ -221,20 +250,26 @@ export default function PatientDashboard() {
                     <div className={`p-4 rounded-xl border ${
                       (latest.class_id === 0 || latest.prediction === 'No DR') 
                         ? 'bg-gradient-to-br from-green-500/5 to-transparent border-green-500/10'
-                        : latest.class_id === 1
+                        : (latest.class_id === 1 || latest.prediction === 'Mild DR')
                         ? 'bg-gradient-to-br from-yellow-500/5 to-transparent border-yellow-500/10'
-                        : latest.class_id === 2
+                        : (latest.class_id === 2 || latest.prediction === 'Moderate DR')
                         ? 'bg-gradient-to-br from-orange-500/5 to-transparent border-orange-500/10'
-                        : (latest.class_id && latest.class_id >= 3) || latest.prediction === 'DR'
+                        : (latest.class_id === 3 || latest.prediction === 'Severe DR')
+                        ? 'bg-gradient-to-br from-red-500/5 to-transparent border-red-500/10'
+                        : (latest.class_id === 4 || latest.prediction === 'Proliferative DR')
+                        ? 'bg-gradient-to-br from-red-700/5 to-transparent border-red-700/10'
+                        : latest.prediction === 'DR'
                         ? 'bg-gradient-to-br from-red-500/5 to-transparent border-red-500/10'
                         : 'bg-gradient-to-br from-gray-500/5 to-transparent border-gray-500/10'
                     }`}>
                       <p className="text-sm text-[var(--muted)]">Status Diagnosa</p>
                       <p className={`text-lg font-semibold mt-1 ${
                         (latest.class_id === 0 || latest.prediction === 'No DR') ? 'text-green-500' :
-                        latest.class_id === 1 ? 'text-yellow-500' :
-                        latest.class_id === 2 ? 'text-orange-500' :
-                        (latest.class_id && latest.class_id >= 3) || latest.prediction === 'DR' ? 'text-red-500' :
+                        (latest.class_id === 1 || latest.prediction === 'Mild DR') ? 'text-yellow-500' :
+                        (latest.class_id === 2 || latest.prediction === 'Moderate DR') ? 'text-orange-500' :
+                        (latest.class_id === 3 || latest.prediction === 'Severe DR') ? 'text-red-500' :
+                        (latest.class_id === 4 || latest.prediction === 'Proliferative DR') ? 'text-red-700' :
+                        latest.prediction === 'DR' ? 'text-red-500' :
                         'text-gray-500'
                       }`}>
                         {latest.prediction || '-'}
