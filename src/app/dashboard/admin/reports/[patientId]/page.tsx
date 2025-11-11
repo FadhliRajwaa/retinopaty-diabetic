@@ -28,7 +28,10 @@ interface ApiScanResult {
   user_profiles?: { email?: string; full_name?: string };
   image_url?: string;
   prediction: string;
+  class_id?: number;
   confidence: string | number;
+  description?: string;
+  severity_level?: string;
   analysis_date?: string;
   created_at: string;
   notes?: string;
@@ -43,8 +46,11 @@ interface ScanResult {
   patient_name: string;
   patient_email: string;
   image_url: string;
-  prediction: 'DR' | 'NO_DR';
+  prediction: string;
+  class_id?: number;
   confidence: number;
+  description?: string;
+  severity_level?: string;
   analysis_date: string;
   notes?: string;
   created_by: string;
@@ -85,8 +91,11 @@ export default function PatientDetailPage() {
           patient_name: scan.patient_name,
           patient_email: scan.patient_info?.email || scan.user_profiles?.email || 'N/A',
           image_url: scan.image_url || '/placeholder-retina.jpg',
-          prediction: scan.prediction as 'DR' | 'NO_DR',
+          prediction: scan.prediction || 'Unknown',
+          class_id: scan.class_id,
           confidence: typeof scan.confidence === 'string' ? parseFloat(scan.confidence) : Number(scan.confidence || 0),
+          description: scan.description,
+          severity_level: scan.severity_level,
           analysis_date: scan.analysis_date || scan.created_at,
           notes: scan.notes || scan.doctor_suggestion || scan.manual_suggestion,
           created_by: scan.created_by || 'admin',
@@ -96,7 +105,12 @@ export default function PatientDetailPage() {
         }));
 
         const sortedScans = scans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        const drCount = scans.filter(scan => scan.prediction === 'DR').length;
+        // 5-class DR detection (any class_id >= 1 or legacy DR)
+        const drCount = scans.filter(scan => 
+          (scan.class_id !== undefined && scan.class_id > 0) || 
+          scan.prediction === 'DR' ||
+          ['Mild DR', 'Moderate DR', 'Severe DR', 'Proliferative DR'].includes(scan.prediction)
+        ).length;
         
         setPatientDetail({
           patient_id: patientId,
@@ -249,7 +263,7 @@ export default function PatientDetailPage() {
           <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-800 rounded-xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-2">DR Terdeteksi</p>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-2">Risk Cases</p>
                 <p className="text-3xl font-bold text-red-700 dark:text-red-300">{patientDetail.dr_detected_count}</p>
                 <p className="text-xs text-red-500 dark:text-red-400 mt-1">
                   {patientDetail.total_scans > 0 ? Math.round((patientDetail.dr_detected_count / patientDetail.total_scans) * 100) : 0}% dari total
@@ -264,7 +278,7 @@ export default function PatientDetailPage() {
           <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800 rounded-xl p-6 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-2">Scan Normal</p>
+                <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-2">Normal Cases</p>
                 <p className="text-3xl font-bold text-green-700 dark:text-green-300">{patientDetail.total_scans - patientDetail.dr_detected_count}</p>
                 <p className="text-xs text-green-500 dark:text-green-400 mt-1">
                   {patientDetail.total_scans > 0 ? Math.round(((patientDetail.total_scans - patientDetail.dr_detected_count) / patientDetail.total_scans) * 100) : 0}% dari total
@@ -349,11 +363,26 @@ export default function PatientDetailPage() {
                             <span className="text-sm font-bold text-[var(--accent)]">#{patientDetail.scans.length - index}</span>
                           </div>
                           <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold shadow-sm ${
-                            scan.prediction === 'DR'
+                            (scan.class_id === 0 || scan.prediction === 'No DR')
+                              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                              : (scan.class_id === 1 || scan.prediction === 'Mild DR')
+                              ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white'
+                              : (scan.class_id === 2 || scan.prediction === 'Moderate DR')
+                              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white'
+                              : (scan.class_id === 3 || scan.prediction === 'Severe DR')
                               ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
-                              : 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                              : (scan.class_id === 4 || scan.prediction === 'Proliferative DR')
+                              ? 'bg-gradient-to-r from-red-700 to-red-800 text-white'
+                              : scan.prediction === 'DR'
+                              ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                              : 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
                           }`}>
-                            {scan.prediction === 'DR' ? '🩸 Diabetic Retinopathy' : '✅ Retina Normal'}
+                            {scan.class_id === 0 || scan.prediction === 'No DR' ? '✅ No DR' :
+                             scan.class_id === 1 || scan.prediction === 'Mild DR' ? '🟡 Mild DR' :
+                             scan.class_id === 2 || scan.prediction === 'Moderate DR' ? '🟠 Moderate DR' :
+                             scan.class_id === 3 || scan.prediction === 'Severe DR' ? '🔴 Severe DR' :
+                             scan.class_id === 4 || scan.prediction === 'Proliferative DR' ? '🆘 Proliferative DR' :
+                             scan.prediction === 'DR' ? '🩸 DR (Legacy)' : '❓ Unknown'}
                           </span>
                         </div>
                       </div>
