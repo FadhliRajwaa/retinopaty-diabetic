@@ -55,7 +55,10 @@ interface ApiScanResult {
   user_profiles?: { email?: string; full_name?: string };
   image_url?: string;
   prediction: string;
+  class_id?: number;
   confidence: string | number;
+  description?: string;
+  severity_level?: string;
   analysis_date?: string;
   created_at: string;
   notes?: string;
@@ -80,15 +83,18 @@ export default function ReportsPage() {
       const result = await response.json();
       
       if (result.ok && result.data) {
-        // Transform data to match interface
+        // Transform data to match interface with 5-class support
         const transformedData: ScanResult[] = result.data.map((scan: ApiScanResult) => ({
           id: scan.id,
           patient_id: scan.patient_id,
           patient_name: scan.patient_name,
           patient_email: scan.patient_info?.email || scan.user_profiles?.email || 'N/A',
           image_url: scan.image_url || '/placeholder-retina.jpg',
-          prediction: scan.prediction as 'DR' | 'NO_DR',
+          prediction: scan.prediction || 'Unknown',
+          class_id: scan.class_id,
           confidence: typeof scan.confidence === 'string' ? parseFloat(scan.confidence) : Number(scan.confidence || 0),
+          description: scan.description,
+          severity_level: scan.severity_level,
           analysis_date: scan.analysis_date || scan.created_at,
           notes: scan.notes || scan.doctor_suggestion || scan.manual_suggestion,
           created_by: scan.created_by || 'admin',
