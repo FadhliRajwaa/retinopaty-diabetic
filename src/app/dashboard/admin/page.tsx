@@ -288,9 +288,34 @@ export default function AdminDashboard() {
                   <div className="h-full bg-red-500/70" style={{ width: `${drPct}%` }} title={`DR ${drPct}%`} />
                   <div className="h-full bg-green-500/70" style={{ width: `${normalPct}%` }} title={`Normal ${normalPct}%`} />
                 </div>
-                <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                  <span>DR: {diag?.DR ?? 0}</span>
-                  <span>Normal: {diag?.NO_DR ?? 0}</span>
+                <div className="grid grid-cols-2 gap-2 text-xs text-[var(--muted)]">
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-green-600">No DR:</span>
+                      <span>{noDR}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-yellow-500">Mild:</span>
+                      <span>{mildDR}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-orange-500">Moderate:</span>
+                      <span>{moderateDR}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-red-500">Severe:</span>
+                      <span>{severeDR}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-red-700">Proliferative:</span>
+                      <span>{proliferativeDR}</span>
+                    </div>
+                    {(legacyDR > 0 || legacyNoDR > 0) && (
+                      <div className="text-gray-400 text-[10px]">Legacy: {legacyDR + legacyNoDR}</div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
