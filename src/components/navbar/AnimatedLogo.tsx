@@ -2,14 +2,15 @@
 
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Eye, Shield, Brain, Zap, Sparkles } from "lucide-react";
+import { Eye, Microscope, Brain, Stethoscope, Scan, HeartPulse } from "lucide-react";
 
 const logoVariations = [
-  { icon: Eye, label: "Vision", color: "#00ADB5" },
-  { icon: Shield, label: "Security", color: "#393E46" },
-  { icon: Brain, label: "AI", color: "#00ADB5" },
-  { icon: Zap, label: "Speed", color: "#393E46" },
-  { icon: Sparkles, label: "Innovation", color: "#00ADB5" }
+  { icon: Eye, label: "Retina", color: "#00ADB5" },
+  { icon: Microscope, label: "Analysis", color: "#FF6B6B" },
+  { icon: Brain, label: "AI", color: "#4ECDC4" },
+  { icon: Stethoscope, label: "Medical", color: "#45B7D1" },
+  { icon: Scan, label: "Scan", color: "#96CEB4" },
+  { icon: HeartPulse, label: "Health", color: "#FFEAA7" }
 ];
 
 export function AnimatedLogo() {

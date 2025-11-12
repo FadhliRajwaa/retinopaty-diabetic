@@ -1,0 +1,91 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient Definitions -->
+  <defs>
+    <linearGradient id="eyeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ADB5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#393E46;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="pupilGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#222831;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#393E46;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="retinaGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:0.3" />
+      <stop offset="50%" style="stop-color:#4ECDC4;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#45B7D1;stop-opacity:0.1" />
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle with Medical Cross -->
+  <circle cx="32" cy="32" r="30" fill="url(#eyeGradient)" filter="url(#glow)" opacity="0.1"/>
+  
+  <!-- Outer Eye Shape -->
+  <ellipse cx="32" cy="32" rx="28" ry="18" fill="url(#eyeGradient)" opacity="0.9"/>
+  
+  <!-- Retina Scan Lines (AI Detection) -->
+  <circle cx="32" cy="32" r="20" fill="none" stroke="url(#retinaGradient)" stroke-width="1" opacity="0.6"/>
+  <circle cx="32" cy="32" r="15" fill="none" stroke="url(#retinaGradient)" stroke-width="1" opacity="0.4"/>
+  <circle cx="32" cy="32" r="10" fill="none" stroke="url(#retinaGradient)" stroke-width="1" opacity="0.3"/>
+  
+  <!-- Eye Sclera (White part) -->
+  <ellipse cx="32" cy="32" rx="24" ry="14" fill="white" opacity="0.95"/>
+  
+  <!-- Iris -->
+  <circle cx="32" cy="32" r="10" fill="url(#eyeGradient)" opacity="0.8"/>
+  
+  <!-- Pupil -->
+  <circle cx="32" cy="32" r="6" fill="url(#pupilGradient)"/>
+  
+  <!-- Light Reflection -->
+  <circle cx="29" cy="29" r="2.5" fill="white" opacity="0.9"/>
+  <circle cx="34" cy="35" r="1" fill="white" opacity="0.6"/>
+  
+  <!-- AI Scan Grid -->
+  <g stroke="#00ADB5" stroke-width="0.5" opacity="0.4">
+    <!-- Horizontal scan lines -->
+    <line x1="8" y1="20" x2="56" y2="20"/>
+    <line x1="8" y1="32" x2="56" y2="32"/>
+    <line x1="8" y1="44" x2="56" y2="44"/>
+    <!-- Vertical scan lines -->
+    <line x1="20" y1="16" x2="20" y2="48"/>
+    <line x1="32" y1="16" x2="32" y2="48"/>
+    <line x1="44" y1="16" x2="44" y2="48"/>
+  </g>
+  
+  <!-- Medical Cross (Top Right) -->
+  <g transform="translate(48, 8)">
+    <rect x="5" y="2" width="2" height="8" fill="#FF6B6B" opacity="0.8"/>
+    <rect x="2" y="5" width="8" height="2" fill="#FF6B6B" opacity="0.8"/>
+  </g>
+  
+  <!-- AI Dots (Neural Network) -->
+  <g fill="#00ADB5" opacity="0.6">
+    <circle cx="12" cy="12" r="1"/>
+    <circle cx="52" cy="52" r="1"/>
+    <circle cx="52" cy="12" r="1"/>
+    <circle cx="12" cy="52" r="1"/>
+    <!-- Connection lines -->
+    <line x1="12" y1="12" x2="32" y2="32" stroke="#00ADB5" stroke-width="0.5" opacity="0.3"/>
+    <line x1="52" y1="12" x2="32" y2="32" stroke="#00ADB5" stroke-width="0.5" opacity="0.3"/>
+    <line x1="52" y1="52" x2="32" y2="32" stroke="#00ADB5" stroke-width="0.5" opacity="0.3"/>
+    <line x1="12" y1="52" x2="32" y2="32" stroke="#00ADB5" stroke-width="0.5" opacity="0.3"/>
+  </g>
+  
+  <!-- Diabetic Retinopathy Indicators -->
+  <g opacity="0.4">
+    <!-- Blood vessels -->
+    <path d="M 15 25 Q 25 30 35 25" stroke="#FF6B6B" stroke-width="1" fill="none"/>
+    <path d="M 15 39 Q 25 34 35 39" stroke="#FF6B6B" stroke-width="1" fill="none"/>
+    <!-- Microaneurysms -->
+    <circle cx="42" cy="28" r="0.8" fill="#FF6B6B"/>
+    <circle cx="38" cy="36" r="0.8" fill="#FF6B6B"/>
+    <circle cx="26" cy="38" r="0.8" fill="#FF6B6B"/>
+  </g>
+</svg>

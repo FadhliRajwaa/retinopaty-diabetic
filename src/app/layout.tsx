@@ -18,9 +18,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RetinaAI — Prediksi Diabetic Retinopathy",
+  title: "👁️ RetinaAI — Advanced Diabetic Retinopathy Detection",
   description:
-    "Aplikasi modern untuk prediksi Diabetic Retinopathy dengan autentikasi Admin/Pasien dan Google Login.",
+    "Aplikasi AI modern untuk prediksi Diabetic Retinopathy dengan teknologi Deep Learning dan autentikasi Admin/Pasien.",
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  }
 };
 
 export default function RootLayout({
